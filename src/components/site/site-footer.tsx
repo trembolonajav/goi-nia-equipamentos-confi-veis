@@ -1,5 +1,5 @@
 import { Mail, MapPin, Phone } from "lucide-react";
-import logo from "@/assets/locago-logo.png.asset.json";
+import logo from "@/assets/locago-horizontal.png.asset.json";
 import { EMPRESA } from "@/lib/locago";
 
 export function SiteFooter() {

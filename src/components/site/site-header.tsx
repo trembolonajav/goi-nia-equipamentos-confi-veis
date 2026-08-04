@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Menu, X, Phone } from "lucide-react";
-import logo from "@/assets/locago-logo.png.asset.json";
+import logo from "@/assets/locago-horizontal.png.asset.json";
 import { EMPRESA, whatsappLink } from "@/lib/locago";
 
 const LINKS = [
