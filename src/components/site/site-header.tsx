@@ -33,9 +33,9 @@ export function SiteHeader() {
           <img
             src={logo.url}
             alt="LOCAGO — Aluguel de Equipamentos"
-            width={200}
-            height={100}
-            className="h-11 w-auto lg:h-14"
+            width={890}
+            height={220}
+            className="h-9 w-auto lg:h-11"
           />
         </a>
 

@@ -10,10 +10,10 @@ export function SiteFooter() {
           <img
             src={logo.url}
             alt="LOCAGO — Aluguel de Equipamentos"
-            width={200}
-            height={100}
+            width={890}
+            height={220}
             loading="lazy"
-            className="h-14 w-auto"
+            className="h-12 w-auto"
           />
           <p className="mt-4 max-w-xs text-sm text-muted-foreground">{EMPRESA.descricao}.</p>
         </div>
