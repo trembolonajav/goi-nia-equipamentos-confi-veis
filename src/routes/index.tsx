@@ -1,14 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/site/site-header";
 import { Hero } from "@/components/site/hero";
+import { BuscaRapida } from "@/components/site/busca-rapida";
 import { Equipamentos } from "@/components/site/equipamentos";
 import { ComoFunciona } from "@/components/site/como-funciona";
 import { Diferenciais } from "@/components/site/diferenciais";
 import { Atendimento } from "@/components/site/atendimento";
 import { Orcamento } from "@/components/site/orcamento";
-import { Faq, FAQ_ITENS } from "@/components/site/faq";
+import { Faq } from "@/components/site/faq";
 import { SiteFooter } from "@/components/site/site-footer";
 import { WhatsappFab } from "@/components/site/whatsapp-fab";
+import { FAQ_HOME } from "@/lib/faq";
 import { EMPRESA } from "@/lib/locago";
 
 const TITLE = "LOCAGO — Aluguel de Equipamentos para Construção em Goiânia";
@@ -52,7 +54,7 @@ export const Route = createFileRoute("/")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          mainEntity: FAQ_ITENS.map((i) => ({
+          mainEntity: FAQ_HOME.map((i) => ({
             "@type": "Question",
             name: i.q,
             acceptedAnswer: { "@type": "Answer", text: i.a },
@@ -69,6 +71,7 @@ function Index() {
       <SiteHeader />
       <main>
         <Hero />
+        <BuscaRapida />
         <Equipamentos />
         <ComoFunciona />
         <Diferenciais />

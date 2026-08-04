@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Menu, X, Phone } from "lucide-react";
 import logo from "@/assets/locago-horizontal.png.asset.json";
+import { WhatsappIcon } from "@/components/icons/whatsapp";
 import { EMPRESA, whatsappLink } from "@/lib/locago";
 
 const LINKS = [
-  { href: "#equipamentos", label: "Equipamentos" },
-  { href: "#como-funciona", label: "Como funciona" },
-  { href: "#diferenciais", label: "Por que a LOCAGO" },
-  { href: "#atendimento", label: "Atendimento" },
-  { href: "#faq", label: "Dúvidas" },
+  { href: "/equipamentos", label: "Equipamentos" },
+  { href: "/#como-funciona", label: "Como funciona" },
+  { href: "/#diferenciais", label: "Vantagens" },
+  { href: "/#entrega", label: "Entrega e retirada" },
+  { href: "/duvidas", label: "Dúvidas" },
 ];
 
 export function SiteHeader() {
@@ -28,18 +30,22 @@ export function SiteHeader() {
         scrolled ? "border-b border-border" : "border-b border-transparent"
       }`}
     >
-      <div className="container-locago flex h-16 items-center justify-between gap-4 lg:h-[72px]">
-        <a href="#top" className="flex items-center" aria-label={`${EMPRESA.nome} — início`}>
+      <div
+        className={`container-locago flex items-center justify-between gap-4 transition-[height] ${
+          scrolled ? "h-14 lg:h-16" : "h-16 lg:h-[72px]"
+        }`}
+      >
+        <Link to="/" className="flex items-center" aria-label={`${EMPRESA.nome} — início`}>
           <img
             src={logo.url}
             alt="LOCAGO — Aluguel de Equipamentos"
             width={890}
             height={220}
-            className="h-9 w-auto lg:h-11"
+            className={`w-auto transition-[height] ${scrolled ? "h-8 lg:h-9" : "h-9 lg:h-11"}`}
           />
-        </a>
+        </Link>
 
-        <nav className="hidden items-center gap-7 lg:flex" aria-label="Navegação principal">
+        <nav className="hidden items-center gap-6 lg:flex" aria-label="Navegação principal">
           {LINKS.map((l) => (
             <a
               key={l.href}
@@ -63,8 +69,9 @@ export function SiteHeader() {
             href={whatsappLink("Olá! Quero um orçamento de aluguel de equipamentos.")}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-12 items-center rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-brand-light active:bg-brand-dark"
+            className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-brand-light active:bg-brand-dark"
           >
+            <WhatsappIcon className="size-5" />
             Pedir orçamento
           </a>
         </div>
@@ -94,11 +101,19 @@ export function SiteHeader() {
               </a>
             ))}
             <a
+              href={`tel:${EMPRESA.telefoneRaw}`}
+              className="inline-flex min-h-12 items-center gap-2 py-3 text-base font-semibold"
+            >
+              <Phone className="size-4 text-brand" aria-hidden />
+              {EMPRESA.telefone}
+            </a>
+            <a
               href={whatsappLink("Olá! Quero um orçamento de aluguel de equipamentos.")}
               target="_blank"
               rel="noopener noreferrer"
-              className="my-3 inline-flex h-12 items-center justify-center rounded-lg bg-primary px-6 font-semibold text-primary-foreground"
+              className="my-3 inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-primary px-6 font-semibold text-primary-foreground"
             >
+              <WhatsappIcon className="size-5" />
               Pedir orçamento no WhatsApp
             </a>
           </nav>
