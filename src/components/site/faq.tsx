@@ -1,36 +1,11 @@
+import { Link } from "@tanstack/react-router";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-
-export const FAQ_ITENS = [
-  {
-    q: "Como faço para alugar um equipamento?",
-    a: "Fale com a gente pelo WhatsApp, telefone ou formulário informando o equipamento, o prazo e o endereço da obra. Respondemos com valor e disponibilidade em poucos minutos no horário comercial.",
-  },
-  {
-    q: "Qual o prazo mínimo de locação?",
-    a: "Trabalhamos com diária, semanal e mensal. Quanto maior o prazo, melhor o valor proporcional. O período começa a contar na entrega do equipamento.",
-  },
-  {
-    q: "Vocês entregam na obra?",
-    a: "Sim. Fazemos entrega e retirada em Goiânia e região metropolitana. O valor do frete é informado no orçamento, antes de você fechar.",
-  },
-  {
-    q: "Quais documentos são necessários?",
-    a: "Documento com foto e comprovante de endereço para pessoa física; CNPJ e dados do responsável para empresa. Em alguns itens pode ser solicitada caução.",
-  },
-  {
-    q: "E se o equipamento apresentar defeito durante o uso?",
-    a: "Basta avisar. Se o problema for de funcionamento do equipamento, fazemos a troca ou o reparo sem custo adicional para você.",
-  },
-  {
-    q: "Posso estender o período da locação?",
-    a: "Pode. Avise antes do fim do prazo e prorrogamos na mesma condição, conforme a disponibilidade do equipamento.",
-  },
-];
+import { FAQ_HOME } from "@/lib/faq";
 
 export function Faq() {
   return (
@@ -42,12 +17,18 @@ export function Faq() {
             Tudo claro antes de fechar
           </h2>
           <p className="mt-4 text-muted-foreground">
-            Se ficou alguma dúvida, é só perguntar no WhatsApp. Respondemos direto, sem script.
+            Preço, prazo, entrega, documentos e o que fazer se o equipamento apresentar defeito.
           </p>
+          <Link
+            to="/duvidas"
+            className="mt-6 inline-flex min-h-12 items-center rounded-lg border border-border bg-surface-elevated px-6 font-semibold transition-colors hover:border-brand"
+          >
+            Ver todas as dúvidas
+          </Link>
         </div>
 
         <Accordion type="single" collapsible className="w-full">
-          {FAQ_ITENS.map((item, i) => (
+          {FAQ_HOME.map((item, i) => (
             <AccordionItem key={item.q} value={`item-${i}`} className="border-border">
               <AccordionTrigger className="py-5 text-left text-base font-semibold hover:no-underline">
                 {item.q}
