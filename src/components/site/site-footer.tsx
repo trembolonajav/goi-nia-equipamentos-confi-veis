@@ -22,22 +22,22 @@ export function SiteFooter() {
           <h3 className="text-sm uppercase tracking-[0.18em] text-brand">Navegação</h3>
           <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
             <li>
-              <a href="#equipamentos" className="hover:text-foreground">
+              <a href="/equipamentos" className="hover:text-foreground">
                 Equipamentos
               </a>
             </li>
             <li>
-              <a href="#como-funciona" className="hover:text-foreground">
+              <a href="/#como-funciona" className="hover:text-foreground">
                 Como funciona
               </a>
             </li>
             <li>
-              <a href="#atendimento" className="hover:text-foreground">
-                Área de atendimento
+              <a href="/#entrega" className="hover:text-foreground">
+                Entrega e retirada
               </a>
             </li>
             <li>
-              <a href="#faq" className="hover:text-foreground">
+              <a href="/duvidas" className="hover:text-foreground">
                 Dúvidas frequentes
               </a>
             </li>

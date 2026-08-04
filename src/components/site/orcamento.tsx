@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { MessageCircle, Phone } from "lucide-react";
+import { Phone } from "lucide-react";
+import { WhatsappIcon } from "@/components/icons/whatsapp";
 import { EMPRESA, whatsappLink } from "@/lib/locago";
 
 const EQUIPAMENTOS = [
@@ -137,7 +138,7 @@ export function Orcamento() {
             type="submit"
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-primary px-6 font-semibold text-primary-foreground transition-colors hover:bg-brand-light active:bg-brand-dark"
           >
-            <MessageCircle className="size-5" aria-hidden />
+            <WhatsappIcon className="size-5" />
             Enviar no WhatsApp
           </button>
           <p className="text-xs text-muted-foreground">
