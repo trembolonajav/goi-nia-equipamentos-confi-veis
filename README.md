@@ -1,24 +1,90 @@
-# Goiânia Equipamentos Confiáveis
+# LOCAGO — Sistema interno (protótipo)
 
-eu tenho essa logo e cores , vc ja pode ver o nome do projeto e da empresa e qual o seu segmento que ela atua tbm , eu vi alguams referencias do que tem aqui em goiania , nossa empresa vai ser sediada aqui , alguns que ue vi "https://parcrt.com.br/" "https://maqcenter.com.br/aluguel-de-equipamentos/?utm_source=google&utm_medium=cpc&utm_term=martelete%20aluguel&utm_id=22434484209-177504363306-746072189034&utm_campaign=[V4]-[SEARCH]-[CONTATO]&utm_content=Equipamentos-especificos&utm_source=google&utm_medium=cpc&utm_campaign=google-ads-search&utm_content=177504363306_746072189034&utm_term=martelete%20aluguel&gclid=Cj0KCQjwm8bTBhDWARIsAC9Hi8mRy22F9SKTzv5qYkWh6nw7rGpuTM_EYwmbyKM3-8yiVjIh_Uy8_kAaAmWCEALw_wcB&gad_source=1&gad_campaignid=22434484209&gbraid=0AAAAA9icaGXyYAgJNJB0ihNDnpoUyzLmA&gclid=Cj0KCQjwm8bTBhDWARIsAC9Hi8mRy22F9SKTzv5qYkWh6nw7rGpuTM_EYwmbyKM3-8yiVjIh_Uy8_kAaAmWCEALw_wcB" "https://alumac.ind.br/locadora/?post_type=product" "https://casadoconstrutor.com.br/pt-br/produto/aluguel-de-betoneira-400-litros?fmkt=go&gad_source=1&gad_campaignid=22854724275&gbraid=0AAAAADuiurOTnFLegQzoD410gKKZ8orvm&gclid=Cj0KCQjwm8bTBhDWARIsAC9Hi8kK2bL0O93feWBppQ2RWkQvpQ1lLNwge051fL4dzhEnblYUTv5RF0IaAuHWEALw_wcB" "https://guiacidade.com.br/goiania-go/empresa/locadora-circular-1731535004.html" "https://mestredaobralocacoes.com.br/unidade/goiania" "https://www.locmaisgoiania.com.br/" , eles devem estar a muito tempo no mercado , devem saber algo desse nicho , mas eu achei todos os sites deles muito antigos , feitos em outra decada parece , n e muito moderno e nem muito chamativo , gostei das nossas cores de paleta , queria que vc buscasse referencias tbm desse segmento , para criamos o nosso site , acertivo , objetivo , moderno , que sirva para conhecer nossa empresa , fechar vendas , fazer a prospecção de conhecer , passar segurança , garantia , e confiança , estamos começando , n temos nem 1 dia de aberto ainda , n temos local ainda , estamos construindo essas coisas , mas claro , n precisa de falar isso no site , oq queremos e algo bem feito , pense que vc esta fazendo como um web developer senior , faça da melhor maneira possivel , use as melhores praticas , e veja oq tem de melhor no mercado , melhores tecnicas , pensa na facilidade do cliente , hoej para vc fechar uma venda tem que ser facil e acessivel , pense tudo isso e me traga o melhor .
+Protótipo de front-end (React + TypeScript + Vite) do sistema interno da **LOCAGO —
+Aluguel de Equipamentos** (Goiânia-GO). Sem back-end e sem banco: todo o estado vive no
+navegador (`localStorage`), então você pode criar dados de verdade e ver o fluxo real.
 
-This project was built with [Lovable](https://lovable.dev).
+## Rodar
 
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/66d82fa3-4f15-47be-b214-277f25bb3bf0).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+```bash
+npm install
 npm run dev
 ```
+
+Abre em `http://localhost:5173`.
+
+## Backend e banco de dados
+
+A primeira API funcional cobre o módulo **Atendimento** (clientes e pedidos). Ela usa Java 17, Spring Boot, PostgreSQL e Flyway.
+
+```bash
+docker compose up -d --build
+npm run dev
+```
+
+- Site e sistema: `http://localhost:5173`
+- API: `http://localhost:8081/api/atendimento`
+- Saúde da API: `http://localhost:8081/actuator/health`
+- PostgreSQL: `localhost:5433` (banco/usuário `locago`)
+
+Os mocks continuam visíveis. Clientes e pedidos novos são gravados no PostgreSQL e carregados novamente pela API. A aprovação salva contrato, reservas, cobrança da locação e caução separada em uma única transação. Contratos com entrega em obra geram tarefas reais de entrega e coleta. A expedição conclui a entrega e retém a caução; a devolução conclui a coleta e envia os itens para inspeção. Uma inspeção aprovada libera patrimônio e caução; uma avaria abre manutenção e mantém a caução em análise. Contas a receber aceita pagamentos parciais e totais sem misturar caução com receita.
+
+O cadastro de clientes valida CPF/CNPJ pelos dígitos verificadores, telefone com DDD, e-mail e endereço obrigatório tanto no navegador quanto na API. Documentos PDF, JPG e PNG de até 10 MB podem ser anexados durante o cadastro ou na ficha do cliente, baixados e excluídos. Os arquivos ficam no volume Docker persistente `locago_uploads`, e seus metadados ficam no PostgreSQL.
+
+### Rotas
+
+- `/site` — **site público** (Home, Catálogo, Equipamento, Checkout, Dúvidas), sem login.
+- `/login` — entrada do sistema interno.
+- `/app` — **sistema interno** (protegido). A raiz `/` redireciona para o site.
+
+Os dados (equipamentos, clientes, contratos, pedidos, patrimônios, cobranças, manutenções,
+agenda) são os mesmos do mockup "Sistema LOCAGO v2" e do "Site LOCAGO".
+
+### Acessos de teste
+
+| Usuário  | Senha    | Papel                |
+|----------|----------|----------------------|
+| `admin`  | `locago` | administrador        |
+| `balcao` | `locago` | atendente de balcão  |
+
+## O que já funciona (fluxo real, com persistência)
+
+- **Login** com rota protegida.
+- **Início / Atenção hoje** — KPIs calculados dos dados (expedições, devoluções atrasadas,
+  orçamentos, cobranças vencidas, manutenção), agenda do dia, situação da frota e financeiro.
+- **Nova locação** (assistente de 7 etapas): cliente → retirada/obra → período →
+  equipamentos → serviços → pagamento → revisão. Calcula a **melhor combinação de tabela**
+  (diária/semanal/quinzenal/mensal), mostra a memória de cálculo, valida bloqueios/avisos e
+  gera **orçamento** ou fecha direto como **aprovado**.
+- **Pedidos** — lista, detalhe e **aprovar → gera contrato + cobrança**.
+- **Contratos** — lista, detalhe, linha do tempo e ações **expedir** (aloca patrimônio real e
+  muda estados) e **devolver** (encerra e libera caução).
+- **Expedições** — fila dos contratos aguardando saída.
+- **Equipamentos** — catálogo com **disponibilidade por período** (desconta locações,
+  reservas e manutenção que se sobrepõem às datas) e ficha do produto.
+- **Clientes** — lista, ficha com abas (cadastro, contratos, obras, documentos, cobranças) e
+  **cadastro novo** (bloqueia documento duplicado, bloquear/reativar).
+- **Obras**, **Patrimônios**, **Calendário de ocupação** e **Cobranças** (receber, KPIs).
+
+## Onde ficam as coisas
+
+```
+src/
+  auth/          login + contexto de autenticação (mock)
+  data/          seed (dados mock) + store (localStorage, CRUD, disponibilidade)
+  lib/           formatação, precificação (melhor tabela), imagens
+  components/    Layout (sidebar/header/busca), UI (tags, toast, thumb)
+  pages/         uma tela por arquivo
+  types.ts       modelo de domínio
+```
+
+Para **limpar os dados** e voltar à semente: apague a chave `locago:db:v3` no
+`localStorage` do navegador (DevTools → Application → Local Storage) e recarregue.
+
+## Próximas fases (roadmap)
+
+Composições (kits), regras de faturamento, NFS-e/boleto, e a troca por um back-end real
+(as telas de _Composições_ e _Configurações_ já ficam marcadas como "Em breve").
+
+> Identidade visual e mapa de telas baseados no material de design da LOCAGO
+> (paleta laranja `#F36F0A` / grafite, tipografia Rajdhani + Inter).

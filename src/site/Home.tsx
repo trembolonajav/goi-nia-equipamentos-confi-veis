@@ -1,0 +1,29 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { DADOS, FAQ, SERVICOS } from "../data/catalogo";
+import { heroObra, imgOf, logoIlustrativa } from "../lib/images";
+import { openWhatsApp } from "../lib/whatsapp";
+
+const PASSOS = [
+  ["1", "Escolha o equipamento", "Veja os modelos disponíveis, aplicações e especificações no catálogo."],
+  ["2", "Fale pelo WhatsApp", "O botão abre uma mensagem já preenchida com o equipamento escolhido."],
+  ["3", "Confirme as condições", "Nossa equipe informa valor, disponibilidade, documentos, retirada ou entrega."],
+  ["4", "Receba ou retire", "Depois da contratação, combine a retirada na loja ou a entrega na obra."]
+];
+
+export default function Home() {
+  const nav = useNavigate(); const [faq, setFaq] = useState(0); const destaques = DADOS.filter(e => e.destaque).slice(0, 4);
+  return <main>
+    <section style={{ position: "relative", borderBottom: "1px solid var(--border)", overflow: "hidden" }}>
+      <img src={heroObra} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: .22 }} /><div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,#0B0D0E 0%,rgba(11,13,14,.92) 45%,rgba(11,13,14,.55) 100%)" }} />
+      <div className="site-wrap site-hero" style={{ position: "relative", padding: "72px 0 64px", display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 48, alignItems: "center" }}>
+        <div><div style={{ display: "inline-flex", padding: "7px 12px", border: "1px solid var(--border)", borderRadius: 999, background: "var(--card)", fontSize: 12, textTransform: "uppercase" }}>Goiânia e região metropolitana</div><h1 className="site-h2" style={{ fontSize: "clamp(2.5rem,5vw,4rem)", lineHeight: 1.04, marginTop: 20 }}>Equipamento certo para sua obra, com atendimento <span style={{ color: "var(--orange)" }}>pelo WhatsApp.</span></h1><p className="muted" style={{ fontSize: 17, maxWidth: "52ch", marginTop: 20 }}>Conheça os equipamentos disponíveis na LOCAGO e fale diretamente com nossa equipe para consultar valores, disponibilidade e contratação.</p><div className="row wrap" style={{ gap: 12, marginTop: 28 }}><button className="btn btn-primary" style={{ minHeight: 50 }} onClick={() => nav("/site/catalogo")}>Ver equipamentos</button><button className="btn btn-ghost" style={{ minHeight: 50 }} onClick={() => openWhatsApp()}>Falar no WhatsApp</button></div></div>
+        <div className="heroimg" style={{ display: "flex", justifyContent: "center" }}><img src={logoIlustrativa} alt="LOCAGO" style={{ width: "100%", maxWidth: 420 }} /></div>
+      </div>
+    </section>
+    <section style={{ borderBottom: "1px solid var(--border)", background: "var(--panel)" }}><div className="site-wrap" style={{ padding: "24px 0", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}><span className="uplabel">Encontre pelo serviço</span>{SERVICOS.map(s => <button key={s} className="chip" onClick={() => nav(`/site/catalogo?servico=${encodeURIComponent(s)}`)}>{s}</button>)}</div></section>
+    <section className="site-wrap" style={{ padding: "80px 0" }}><div className="spread"><div><h2 className="site-h2">Equipamentos da loja</h2><p className="muted">Catálogo atual conforme a relação de equipamentos da LOCAGO.</p></div><button className="btn btn-ghost" onClick={() => nav("/site/catalogo")}>Ver catálogo completo</button></div><div style={{ marginTop: 32, display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 24 }}>{destaques.map(eq => <article key={eq.slug} className="eq-card"><div className="ph" style={{ backgroundImage: `url(${imgOf(eq.img)})` }} /><div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}><div className="uplabel">{eq.marca} · {eq.modelo}</div><h3 style={{ fontFamily: "var(--head)", fontSize: 22, margin: 0 }}>{eq.nome}</h3><p className="muted" style={{ fontSize: 14, flex: 1 }}>{eq.aplicacao}</p><button className="btn btn-ghost" onClick={() => nav(`/site/equipamento/${eq.slug}`)}>Ver detalhes</button><button className="btn btn-primary" onClick={() => openWhatsApp(`Olá! Tenho interesse no aluguel de ${eq.nome} (${eq.marca} ${eq.modelo}). Gostaria de consultar valor e disponibilidade.`)}>Consultar no WhatsApp</button></div></article>)}</div></section>
+    <section id="como-funciona" style={{ background: "var(--panel)", borderTop: "1px solid var(--border)" }}><div className="site-wrap" style={{ padding: "80px 0" }}><h2 className="site-h2">Como funciona</h2><div className="site-cols-4" style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 24 }}>{PASSOS.map(p => <div className="step-card" key={p[0]}><div className="step-badge">{p[0]}</div><h3 style={{ fontFamily: "var(--head)", fontSize: 22 }}>{p[1]}</h3><p className="muted">{p[2]}</p></div>)}</div></div></section>
+    <section className="site-wrap site-cols-2" style={{ padding: "80px 0", display: "grid", gridTemplateColumns: "1.4fr .6fr", gap: 48 }}><div><h2 className="site-h2">Dúvidas frequentes</h2><div style={{ marginTop: 24, borderTop: "1px solid var(--border)" }}>{FAQ.filter(f => f.home).map((f,i) => <div key={f.q}><button onClick={() => setFaq(faq === i ? -1 : i)} style={{ width: "100%", minHeight: 56, background: "none", border: 0, borderBottom: "1px solid var(--border)", color: faq === i ? "var(--orange)" : "var(--text)", textAlign: "left", fontWeight: 600, cursor: "pointer" }}>{f.q}</button>{faq === i && <p className="muted" style={{ padding: "0 0 18px", borderBottom: "1px solid var(--border)" }}>{f.a}</p>}</div>)}</div></div><aside className="card"><h3 className="h2">Ainda com dúvida?</h3><p className="muted">Converse diretamente com nossa equipe.</p><button className="btn btn-primary btn-block" onClick={() => openWhatsApp("Olá! Tenho uma dúvida sobre a locação de equipamentos.")}>Perguntar no WhatsApp</button></aside></section>
+  </main>;
+}

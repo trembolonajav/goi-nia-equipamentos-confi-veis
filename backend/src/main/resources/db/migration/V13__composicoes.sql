@@ -1,0 +1,1 @@
+create table composicao_catalogo(id varchar(40) primary key,dados jsonb not null,ativo boolean not null default true,criado_em timestamptz not null default now(),atualizado_em timestamptz not null default now());

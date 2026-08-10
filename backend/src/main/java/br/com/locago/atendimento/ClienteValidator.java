@@ -1,0 +1,9 @@
+package br.com.locago.atendimento;
+import org.springframework.http.HttpStatus;import org.springframework.stereotype.Component;import org.springframework.web.server.ResponseStatusException;import java.util.Map;import java.util.regex.Pattern;
+@Component public class ClienteValidator{
+ private static final Pattern EMAIL=Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+ public void validar(Map<String,Object> c){String tipo=s(c,"tipo"),nome=s(c,"nome"),doc=digitos(s(c,"doc")),tel=digitos(s(c,"tel")),email=s(c,"email"),end=s(c,"endereco");boolean pj=tipo.toLowerCase().contains("jurídica")||tipo.toLowerCase().contains("juridica");if(nome.length()<3)erro("Nome/razão social inválido");if(pj?!cnpj(doc):!cpf(doc))erro(pj?"CNPJ inválido":"CPF inválido");if(tel.length()!=10&&tel.length()!=11)erro("Telefone deve conter DDD e 10 ou 11 dígitos");if(!EMAIL.matcher(email).matches())erro("E-mail inválido");if(end.length()<10)erro("Endereço completo é obrigatório");}
+ private String s(Map<String,Object>m,String k){Object v=m.get(k);return v==null?"":v.toString().trim();}private String digitos(String v){return v.replaceAll("\\D","");}private void erro(String m){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,m);}
+ private boolean cpf(String n){if(n.length()!=11||n.chars().distinct().count()==1)return false;return dv(n,9,10)==n.charAt(9)-48&&dv(n,10,11)==n.charAt(10)-48;}private int dv(String n,int len,int peso){int s=0;for(int i=0;i<len;i++)s+=(n.charAt(i)-48)*(peso-i);int r=11-s%11;return r>=10?0:r;}
+ private boolean cnpj(String n){if(n.length()!=14||n.chars().distinct().count()==1)return false;int[]p1={5,4,3,2,9,8,7,6,5,4,3,2},p2={6,5,4,3,2,9,8,7,6,5,4,3,2};return cnpjDv(n,p1)==n.charAt(12)-48&&cnpjDv(n,p2)==n.charAt(13)-48;}private int cnpjDv(String n,int[]p){int s=0;for(int i=0;i<p.length;i++)s+=(n.charAt(i)-48)*p[i];int r=s%11;return r<2?0:11-r;}
+}
