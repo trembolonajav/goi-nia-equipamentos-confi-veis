@@ -1,90 +1,102 @@
-# LOCAGO — Sistema interno (protótipo)
+# LOCAGO — Sistema de locação de equipamentos
 
-Protótipo de front-end (React + TypeScript + Vite) do sistema interno da **LOCAGO —
-Aluguel de Equipamentos** (Goiânia-GO). Sem back-end e sem banco: todo o estado vive no
-navegador (`localStorage`), então você pode criar dados de verdade e ver o fluxo real.
+Sistema público e operacional da **LOCAGO — Aluguel de Equipamentos**, em Goiânia/GO. O projeto reúne o site de divulgação e um sistema interno persistente para atendimento, contratos, movimentação individual dos equipamentos, manutenção, cobrança e financeiro.
 
-## Rodar
+## Stack
+
+- Frontend: React 19, TypeScript e Vite.
+- Backend: Java 17, Spring Boot 3 e JDBC.
+- Banco: PostgreSQL com migrations Flyway.
+- Infraestrutura local: Docker Compose e volume persistente para documentos.
+
+O PostgreSQL é a fonte de verdade dos módulos já integrados. Dados de compatibilidade visual ainda existentes no frontend não substituem a persistência do Core.
+
+## Executar localmente
+
+Pré-requisitos: Docker Desktop, Node.js e npm.
 
 ```bash
+docker compose -f compose.yml up -d --build
 npm install
-npm run dev
-```
-
-Abre em `http://localhost:5173`.
-
-## Backend e banco de dados
-
-A primeira API funcional cobre o módulo **Atendimento** (clientes e pedidos). Ela usa Java 17, Spring Boot, PostgreSQL e Flyway.
-
-```bash
-docker compose up -d --build
 npm run dev
 ```
 
 - Site e sistema: `http://localhost:5173`
 - API: `http://localhost:8081/api/atendimento`
 - Saúde da API: `http://localhost:8081/actuator/health`
-- PostgreSQL: `localhost:5433` (banco/usuário `locago`)
+- PostgreSQL: `localhost:5433` — banco e usuário `locago`
 
-Os mocks continuam visíveis. Clientes e pedidos novos são gravados no PostgreSQL e carregados novamente pela API. A aprovação salva contrato, reservas, cobrança da locação e caução separada em uma única transação. Contratos com entrega em obra geram tarefas reais de entrega e coleta. A expedição conclui a entrega e retém a caução; a devolução conclui a coleta e envia os itens para inspeção. Uma inspeção aprovada libera patrimônio e caução; uma avaria abre manutenção e mantém a caução em análise. Contas a receber aceita pagamentos parciais e totais sem misturar caução com receita.
+Para acompanhar os serviços:
 
-O cadastro de clientes valida CPF/CNPJ pelos dígitos verificadores, telefone com DDD, e-mail e endereço obrigatório tanto no navegador quanto na API. Documentos PDF, JPG e PNG de até 10 MB podem ser anexados durante o cadastro ou na ficha do cliente, baixados e excluídos. Os arquivos ficam no volume Docker persistente `locago_uploads`, e seus metadados ficam no PostgreSQL.
-
-### Rotas
-
-- `/site` — **site público** (Home, Catálogo, Equipamento, Checkout, Dúvidas), sem login.
-- `/login` — entrada do sistema interno.
-- `/app` — **sistema interno** (protegido). A raiz `/` redireciona para o site.
-
-Os dados (equipamentos, clientes, contratos, pedidos, patrimônios, cobranças, manutenções,
-agenda) são os mesmos do mockup "Sistema LOCAGO v2" e do "Site LOCAGO".
-
-### Acessos de teste
-
-| Usuário  | Senha    | Papel                |
-|----------|----------|----------------------|
-| `admin`  | `locago` | administrador        |
-| `balcao` | `locago` | atendente de balcão  |
-
-## O que já funciona (fluxo real, com persistência)
-
-- **Login** com rota protegida.
-- **Início / Atenção hoje** — KPIs calculados dos dados (expedições, devoluções atrasadas,
-  orçamentos, cobranças vencidas, manutenção), agenda do dia, situação da frota e financeiro.
-- **Nova locação** (assistente de 7 etapas): cliente → retirada/obra → período →
-  equipamentos → serviços → pagamento → revisão. Calcula a **melhor combinação de tabela**
-  (diária/semanal/quinzenal/mensal), mostra a memória de cálculo, valida bloqueios/avisos e
-  gera **orçamento** ou fecha direto como **aprovado**.
-- **Pedidos** — lista, detalhe e **aprovar → gera contrato + cobrança**.
-- **Contratos** — lista, detalhe, linha do tempo e ações **expedir** (aloca patrimônio real e
-  muda estados) e **devolver** (encerra e libera caução).
-- **Expedições** — fila dos contratos aguardando saída.
-- **Equipamentos** — catálogo com **disponibilidade por período** (desconta locações,
-  reservas e manutenção que se sobrepõem às datas) e ficha do produto.
-- **Clientes** — lista, ficha com abas (cadastro, contratos, obras, documentos, cobranças) e
-  **cadastro novo** (bloqueia documento duplicado, bloquear/reativar).
-- **Obras**, **Patrimônios**, **Calendário de ocupação** e **Cobranças** (receber, KPIs).
-
-## Onde ficam as coisas
-
-```
-src/
-  auth/          login + contexto de autenticação (mock)
-  data/          seed (dados mock) + store (localStorage, CRUD, disponibilidade)
-  lib/           formatação, precificação (melhor tabela), imagens
-  components/    Layout (sidebar/header/busca), UI (tags, toast, thumb)
-  pages/         uma tela por arquivo
-  types.ts       modelo de domínio
+```bash
+docker compose -f compose.yml ps
+docker compose -f compose.yml logs -f backend
 ```
 
-Para **limpar os dados** e voltar à semente: apague a chave `locago:db:v3` no
-`localStorage` do navegador (DevTools → Application → Local Storage) e recarregue.
+## Fluxos implementados
 
-## Próximas fases (roadmap)
+- Clientes PF/PJ com validações, endereço estruturado, busca por CEP e documentos.
+- Produtos, categorias, patrimônios individuais, composições, disponibilidade e calendário.
+- Atendimento, orçamento, pedido, aprovação e geração de contrato.
+- Operação parcial por item e patrimônio: saída, entrega, devolução, inspeção e manutenção.
+- Comprovante assinado próprio para cada movimento de entrega parcial.
+- Histórico imutável de movimentações dos patrimônios.
+- Cobranças com recebimentos parciais, conta financeira de destino e estorno por reversão.
+- Contas a pagar separadas do caixa; a saída financeira nasce somente na liquidação.
+- Visão financeira cujo saldo, entradas e saídas vêm de lançamentos realizados; valores a receber e a pagar vêm das respectivas obrigações.
+- Trocas, ocorrências, agenda logística e documentos operacionais.
 
-Composições (kits), regras de faturamento, NFS-e/boleto, e a troca por um back-end real
-(as telas de _Composições_ e _Configurações_ já ficam marcadas como "Em breve").
+O Core atual não utiliza caução. NFS-e, gateways de pagamento e automações externas estão fora desta fundação.
 
-> Identidade visual e mapa de telas baseados no material de design da LOCAGO
-> (paleta laranja `#F36F0A` / grafite, tipografia Rajdhani + Inter).
+## Regras centrais
+
+- `contrato_item` representa a linha comercial contratada.
+- `contrato_item_patrimonio` associa as unidades físicas que cumprem essa linha.
+- Um patrimônio não pode estar ligado simultaneamente a dois itens ativos.
+- Expedição, entrega, devolução e inspeção são transacionais e podem ser parciais.
+- O contrato só encerra quando todos os itens terminarem ou forem cancelados.
+- Recebimentos e pagamentos só alteram caixa por lançamentos vinculados a uma conta financeira.
+- Estornos preservam o evento original e criam uma reversão auditável.
+
+A especificação completa está em [`docs/LOCAGO_CORE.md`](docs/LOCAGO_CORE.md).
+
+## Banco e migrations
+
+As migrations ficam em `backend/src/main/resources/db/migration` e são aplicadas automaticamente pelo Flyway. A sequência atual vai de **V1 a V19**, incluindo a normalização de itens e movimentos, separação entre saída e entrega e comprovante por operação de entrega.
+
+Não edite migration já publicada. Toda evolução compatível deve entrar em uma nova versão.
+
+## Validação
+
+```bash
+cd backend
+mvn test
+cd ..
+npm run build
+```
+
+Além dos testes automatizados, mudanças de domínio devem ser validadas em banco novo e em banco existente. O cenário crítico do Core é: contrato com múltiplos patrimônios, expedição parcial, entrega parcial com comprovante próprio, devolução individual, inspeção individual e preservação do estado dos demais itens.
+
+## Rotas principais
+
+- `/site` — site público.
+- `/login` — acesso ao sistema interno.
+- `/app` — início do sistema interno.
+- `/app/nova-locacao` — atendimento e orçamento.
+- `/app/contratos` — contratos e operação.
+- `/app/expedicoes` — saídas e entregas pendentes.
+- `/app/produtos`, `/app/patrimonios`, `/app/calendario` — equipamentos.
+- `/app/financeiro`, `/app/fluxo-caixa`, `/app/cobrancas`, `/app/contas-pagar` — financeiro.
+
+## Acesso local de demonstração
+
+| Usuário | Senha | Papel |
+|---|---|---|
+| `admin` | `locago` | administrador |
+| `balcao` | `locago` | atendente de balcão |
+
+## Estado do projeto
+
+**LOCAGO Core Foundation V1 — CLOSED.**
+
+O próximo marco arquitetural normalizará `ORÇAMENTO → VERSÃO → ORÇAMENTO_ITEM → PEDIDO_ITEM → CONTRATO_ITEM`, preservando a experiência simples da interface.

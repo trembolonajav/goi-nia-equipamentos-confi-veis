@@ -29,7 +29,14 @@ public class OperacaoContratoService {
       from contrato_item ci left join contrato_item_patrimonio cip on cip.contrato_item_id=ci.id and cip.liberado_em is null
       left join patrimonio_atendimento p on p.codigo=cip.patrimonio_codigo
       where ci.contrato_numero=:c group by ci.id order by ci.id
-      """).param("c",numero).query().listOfRows();
+      """).param("c",numero).query((r,n)->{
+        Map<String,Object> item=new java.util.LinkedHashMap<>();
+        item.put("id",r.getLong("id"));item.put("produtoId",r.getString("produtoId"));item.put("descricao",r.getString("descricao"));
+        item.put("quantidade",r.getInt("quantidade"));item.put("status",r.getString("status"));item.put("inicio",r.getDate("inicio").toLocalDate().toString());
+        item.put("fim",r.getDate("fim").toLocalDate().toString());item.put("valor",r.getBigDecimal("valor"));item.put("expedido",r.getInt("expedido"));
+        item.put("aExpedir",r.getInt("aExpedir"));item.put("entregue",r.getInt("entregue"));item.put("patrimonios",lerLista(r.getString("patrimonios")));
+        return item;
+      }).list();
   }
 
   @Transactional public Map<String,Object> expedir(String numero,Map<String,Object> body){
@@ -60,13 +67,17 @@ public class OperacaoContratoService {
   @Transactional public Map<String,Object> confirmarEntrega(String numero,Map<String,Object> body){
     Map<String,Object> contrato=carregar(numero); List<String> codigos=textos(body,"patrimonioCodigos");
     if(codigos.isEmpty())throw erro(HttpStatus.BAD_REQUEST,"Selecione ao menos um patrimônio para entregar");
-    exigirDocumento(numero,"Comprovante de entrega assinado");
+    long documentoId=numeroLong(body.get("documentoId"),"Selecione o comprovante desta entrega");
+    List<Long> comprovantes=jdbc.sql("select d.id from documento_contrato d where d.id=:d and d.contrato_numero=:c and d.tipo='Comprovante de entrega assinado' and not exists(select 1 from entrega_operacao e where e.documento_id=d.id) for update")
+      .param("d",documentoId).param("c",numero).query(Long.class).list();
+    if(comprovantes.size()!=1)throw erro(HttpStatus.CONFLICT,"O comprovante não pertence a este contrato ou já foi usado em outra entrega");
+    long entregaOperacaoId=jdbc.sql("insert into entrega_operacao(contrato_numero,documento_id) values(:c,:d) returning id").param("c",numero).param("d",documentoId).query(Long.class).single();
     for(String codigo:codigos){
       List<Map<String,Object>> rows=jdbc.sql("select cip.id,cip.contrato_item_id from contrato_item_patrimonio cip join contrato_item ci on ci.id=cip.contrato_item_id join patrimonio_atendimento p on p.codigo=cip.patrimonio_codigo where ci.contrato_numero=:c and p.codigo=:p and p.estado='LOCADO' and cip.liberado_em is null and cip.entregue_em is null for update").param("c",numero).param("p",codigo).query().listOfRows();
       if(rows.isEmpty())throw erro(HttpStatus.CONFLICT,"Patrimônio "+codigo+" não está aguardando entrega neste contrato");
       Map<String,Object> vinculo=rows.get(0); long itemId=((Number)vinculo.get("contrato_item_id")).longValue();
       jdbc.sql("update contrato_item_patrimonio set entregue_em=now() where id=:id").param("id",vinculo.get("id")).update();
-      registrarMovimento(numero,itemId,codigo,"ENTREGA_CONFIRMADA","LOCADO","LOCADO","Comprovante de entrega confirmado");
+      registrarMovimento(numero,itemId,codigo,"ENTREGA_CONFIRMADA","LOCADO","LOCADO","Comprovante de entrega confirmado",entregaOperacaoId);
     }
     evento(contrato,"Entrega confirmada",codigos.size()+" patrimônio(s) entregue(s) ao cliente"); salvar(numero,contrato); return contrato;
   }
@@ -130,7 +141,8 @@ public class OperacaoContratoService {
     if(spec.update()!=1)throw erro(HttpStatus.CONFLICT,"Estado do patrimônio "+codigo+" foi alterado por outra operação");
     registrarMovimento(contrato,itemId,codigo,tipo,anterior,novo,observacao);
   }
-  private void registrarMovimento(String contrato,long itemId,String codigo,String tipo,String anterior,String novo,String observacao){jdbc.sql("insert into movimentacao_patrimonio(patrimonio_codigo,contrato_numero,contrato_item_id,tipo,estado_anterior,estado_novo,observacao) values (:p,:c,:i,:t,:a,:n,:o)").param("p",codigo).param("c",contrato).param("i",itemId).param("t",tipo).param("a",anterior).param("n",novo).param("o",observacao==null?"":observacao).update();}
+  private void registrarMovimento(String contrato,long itemId,String codigo,String tipo,String anterior,String novo,String observacao){registrarMovimento(contrato,itemId,codigo,tipo,anterior,novo,observacao,null);}
+  private void registrarMovimento(String contrato,long itemId,String codigo,String tipo,String anterior,String novo,String observacao,Long entregaOperacaoId){jdbc.sql("insert into movimentacao_patrimonio(patrimonio_codigo,contrato_numero,contrato_item_id,tipo,estado_anterior,estado_novo,observacao,entrega_operacao_id) values (:p,:c,:i,:t,:a,:n,:o,:e)").param("p",codigo).param("c",contrato).param("i",itemId).param("t",tipo).param("a",anterior).param("n",novo).param("o",observacao==null?"":observacao).param("e",entregaOperacaoId).update();}
   private void liberar(long itemId,String codigo){jdbc.sql("update contrato_item_patrimonio set liberado_em=now() where contrato_item_id=:i and patrimonio_codigo=:p and liberado_em is null").param("i",itemId).param("p",codigo).update();}
   private int contagemVinculos(long id){return jdbc.sql("select count(*) from contrato_item_patrimonio where contrato_item_id=:i").param("i",id).query(Integer.class).single();}
   private void atualizarStatusItem(long id){
@@ -165,6 +177,7 @@ public class OperacaoContratoService {
   @SuppressWarnings("unchecked") private List<Map<String,Object>> mapas(Map<String,Object> body,String campo){Object v=body.get(campo);if(!(v instanceof List<?> l))return List.of();return l.stream().filter(Map.class::isInstance).map(x->(Map<String,Object>)x).toList();}
   private List<String> textos(Map<String,Object> body,String campo){Object v=body.get(campo);if(!(v instanceof List<?> l))return List.of();return l.stream().map(String::valueOf).filter(s->!s.isBlank()).distinct().toList();}
   @SuppressWarnings("unchecked") private Map<String,Object> ler(String v){try{return json.readValue(v,Map.class);}catch(JsonProcessingException e){throw new IllegalStateException(e);}}
+  @SuppressWarnings("unchecked") private List<Map<String,Object>> lerLista(String v){try{return json.readValue(v,List.class);}catch(JsonProcessingException e){throw new IllegalStateException(e);}}
   private String escrever(Object v){try{return json.writeValueAsString(v);}catch(JsonProcessingException e){throw new IllegalArgumentException(e);}}
   private ResponseStatusException erro(HttpStatus status,String mensagem){return new ResponseStatusException(status,mensagem);}
 }

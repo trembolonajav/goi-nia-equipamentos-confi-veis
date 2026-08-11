@@ -27,8 +27,8 @@ Orçamento -> Pedido aprovado -> Contrato -> Reserva -> Expedição parcial/tota
 - Orçamento é uma proposta versionável e não reserva patrimônio.
 - Pedido aprovado congela condições e origina o contrato.
 - Contrato é o centro da operação, mas não é lançamento financeiro.
-- Cada equipamento contratado é um `contrato_item` independente.
-- `contrato_item_patrimonio` vincula unidades físicas ao item.
+- Cada `contrato_item` representa uma linha comercial contratada, com quantidade, período, descrição e valores congelados.
+- `contrato_item_patrimonio` vincula as unidades físicas que cumprem essa linha comercial; o patrimônio não fica embutido no item.
 - Expedição, devolução e inspeção recebem seleção explícita; não movimentam obrigatoriamente o contrato inteiro.
 - Manutenção bloqueia o patrimônio e registra custo e evidências.
 

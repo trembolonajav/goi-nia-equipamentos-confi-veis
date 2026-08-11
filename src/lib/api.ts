@@ -8,7 +8,7 @@ export interface CobrancaApi { id:number; contrato:string; clienteId:string; cli
 export interface ContaFinanceiraApi{id:number;nome:string;tipo:string;saldoInicial:number;ativo:boolean}
 export interface LancamentoFinanceiroApi{id:number;tipo:"ENTRADA"|"SAIDA";descricao:string;categoria:string;contaId:number;conta:string;vencimento:string;pagamento:string|null;valor:number;status:"ABERTO"|"VENCIDO"|"PAGO"|"CANCELADO";forma:string;origem:string;referencia?:string;observacao?:string}
 export interface ResumoFinanceiroApi{saldo:number;entradas:number;saidas:number;aReceber:number;aPagar:number}
-export interface DocumentoClienteApi { id:number; tipo:string; nome:string; mime:string; tamanho:number; criadoEm:string; }
+export interface DocumentoClienteApi { id:number; tipo:string; nome:string; mime:string; tamanho:number; criadoEm:string; usadoEmEntrega?:boolean; entregaOperacaoId?:number|null; }
 export interface ServicoApi { id:number; nome:string; natureza:string; valor:number; ativo:boolean; }
 export interface EventoOperacionalApi {id:number;tipo:"TROCA"|"OCORRENCIA";contrato:string;clienteId:string;categoria:string;descricao:string;prioridade:string;patrimonioOrigem?:string;patrimonioDestino?:string;status:"ABERTA"|"CONCLUIDA";responsavel:string;criadoEm:string;concluidoEm?:string|null}
 export interface CategoriaProdutoApi{id:number;nome:string;prefixo:string}
@@ -43,7 +43,7 @@ export const atendimentoApi = {
   aprovarPedido: (numero: string, pedido: Pedido, contrato: Contrato) => request<Contrato>(`/atendimento/pedidos/${numero}/aprovar`, { method: "POST", body: JSON.stringify({ pedido, contrato }) }),
   itensOperacionaisContrato:(numero:string)=>request<ContratoItemOperacionalApi[]>(`/atendimento/contratos/${numero}/itens-operacionais`),
   expedirContrato: (numero:string,alocacoes:{itemId:number;quantidade:number}[]) => request<Contrato>(`/atendimento/contratos/${numero}/expedir`, { method:"POST",body:JSON.stringify({alocacoes}) }),
-  confirmarEntregaContrato:(numero:string,patrimonioCodigos:string[])=>request<Contrato>(`/atendimento/contratos/${numero}/confirmar-entrega`,{method:"POST",body:JSON.stringify({patrimonioCodigos})}),
+  confirmarEntregaContrato:(numero:string,patrimonioCodigos:string[],documentoId:number)=>request<Contrato>(`/atendimento/contratos/${numero}/confirmar-entrega`,{method:"POST",body:JSON.stringify({patrimonioCodigos,documentoId})}),
   devolverContrato: (numero:string,patrimonioCodigos:string[]) => request<Contrato>(`/atendimento/contratos/${numero}/devolver`, { method:"POST",body:JSON.stringify({patrimonioCodigos}) }),
   inspecionarContrato: (numero:string,resultado:"APROVADO"|"MANUTENCAO",observacao="",patrimonioCodigos:string[]=[]) => request<Contrato>(`/atendimento/contratos/${numero}/inspecionar`, { method:"POST",body:JSON.stringify({resultado,observacao,patrimonioCodigos}) }),
   manutencoes: () => request<ManutencaoApi[]>("/atendimento/manutencoes"),
