@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../data/store";
-import { COBRANCAS } from "../data/mock";
 import { Tag } from "../components/ui";
 import { brl } from "../lib/calc";
-import { atendimentoApi, type DocumentoClienteApi } from "../lib/api";
+import { atendimentoApi, type CobrancaApi, type DocumentoClienteApi } from "../lib/api";
 
 const ABAS = [
   { key: "cadastro", nome: "Cadastro" },
@@ -23,13 +22,16 @@ export default function ClienteDetalhe() {
   const [tipoDocumento,setTipoDocumento]=useState("RG / CNH");
   const [documentoAberto,setDocumentoAberto]=useState<DocumentoClienteApi|null>(null);
   const [enviandoDocumento,setEnviandoDocumento]=useState(false);
+  const [cobrancas,setCobrancas]=useState<CobrancaApi[]>([]);
+  const [erroCobrancas,setErroCobrancas]=useState("");
   useEffect(()=>{if(id)void atendimentoApi.documentosCliente(id).then(setDocumentosApi).catch(()=>setDocumentosApi([]))},[id]);
+  useEffect(()=>{if(id)void atendimentoApi.cobrancas().then(c=>{setCobrancas(c.filter(x=>x.clienteId===id));setErroCobrancas("")}).catch(e=>setErroCobrancas(e instanceof Error?e.message:"Não foi possível carregar as cobranças."))},[id]);
 
   const cl = getCliente(id!);
   if (!cl) return <main className="page"><div className="empty">Cliente não encontrado.</div></main>;
 
   const cts = contratos.filter((c) => c.clienteId === cl.id);
-  const cobs = COBRANCAS.filter((c) => c.cliente === cl.nome);
+  const cobs = cobrancas;
   const pend = cl.docs.filter((d) => !d.ok).length;
   const corSit = cl.situacao === "Bloqueado" ? "var(--red)" : cl.situacao === "Em análise" ? "var(--yellow)" : "var(--green)";
   const badges: Record<string, number> = { cadastro: 0, contratos: cts.length, obras: cl.obras.length, documentos: pend, cobrancas: cobs.length };
@@ -51,6 +53,7 @@ export default function ClienteDetalhe() {
         </div>
         <div className="row wrap" style={{ gap: 8 }}>
           <Tag cor={corSit}>{cl.situacao}</Tag>
+          <button className="btn btn-ghost" onClick={() => nav(`/app/clientes/${cl.id}/editar`)}>Editar cadastro</button>
           <button className="btn btn-primary" onClick={() => nav(`/app/nova-locacao?cliente=${cl.id}`)}>Nova locação</button>
         </div>
       </div>
@@ -153,14 +156,15 @@ export default function ClienteDetalhe() {
         <section className="card" style={{ marginTop: 20 }}>
           <h2 className="h2" style={{ marginBottom: 4 }}>Cobranças</h2>
           <p className="section-note">Pagamento sempre vinculado a uma cobrança. Pagamento parcial não quita o total.</p>
+          {erroCobrancas && <div className="inline-error">{erroCobrancas}</div>}
           {cobs.length === 0 && <div className="empty">Nenhuma cobrança emitida para este cliente.</div>}
           <div className="list">
             {cobs.map((c) => (
-              <div key={c.ref} className="card-tight" style={{ display: "grid", gridTemplateColumns: "110px 1fr auto auto", gap: 14, alignItems: "center" }}>
-                <span className="mono orange" style={{ fontSize: 13 }}>{c.ref}</span>
-                <span style={{ fontSize: 14 }}>{c.desc}</span>
-                <Tag cor={c.situacao === "Vencida" ? "var(--red)" : c.situacao === "Paga" ? "var(--green)" : "var(--yellow)"}>{c.situacao}</Tag>
-                <span className="num" style={{ fontSize: 19, whiteSpace: "nowrap" }}>{brl.format(c.valor)}</span>
+              <div key={c.id} className="card-tight" style={{ display: "grid", gridTemplateColumns: "110px 1fr auto auto", gap: 14, alignItems: "center" }}>
+                <span className="mono orange" style={{ fontSize: 13 }}>CB-{String(c.id).padStart(5,"0")}</span>
+                <span style={{ fontSize: 14 }}>{c.descricao}<small className="block muted">Contrato {c.contrato}</small></span>
+                <Tag cor={c.status === "VENCIDA" ? "var(--red)" : c.status === "PAGA" ? "var(--green)" : "var(--yellow)"}>{c.status}</Tag>
+                <span className="num" style={{ fontSize: 19, whiteSpace: "nowrap" }}>{brl.format(c.saldo)}</span>
               </div>
             ))}
           </div>

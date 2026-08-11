@@ -2,6 +2,7 @@ package br.com.locago.atendimento;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -56,7 +57,8 @@ public class ProdutoCatalogoService {
 
   public List<Map<String, Object>> patrimonios() {
     return jdbc.sql("""
-      select pa.codigo,pa.produto_id,pa.serie,pa.estado,pa.localizacao,p.nome
+      select pa.codigo,pa.produto_id,pa.serie,pa.estado,pa.localizacao,pa.data_aquisicao,
+             pa.valor_aquisicao,pa.observacao,p.nome,p.marca,p.modelo
       from patrimonio_atendimento pa join produto_catalogo p on p.id=pa.produto_id
       order by p.nome,pa.codigo
       """).query((rs, row) -> {
@@ -64,8 +66,35 @@ public class ProdutoCatalogoService {
         item.put("codigo", rs.getString("codigo")); item.put("produtoId", rs.getString("produto_id"));
         item.put("produto", rs.getString("nome")); item.put("serie", rs.getString("serie"));
         item.put("estado", rs.getString("estado")); item.put("local", rs.getString("localizacao"));
+        item.put("marca", rs.getString("marca")); item.put("modelo", rs.getString("modelo"));
+        item.put("dataAquisicao", rs.getDate("data_aquisicao") == null ? null : rs.getDate("data_aquisicao").toLocalDate().toString());
+        item.put("valorAquisicao", rs.getBigDecimal("valor_aquisicao")); item.put("observacao", rs.getString("observacao"));
         return item;
       }).list();
+  }
+
+  public Map<String, Object> buscarPatrimonio(String codigo) {
+    return patrimonios().stream().filter(p -> codigo.equals(p.get("codigo"))).findFirst()
+      .orElseThrow(() -> new NoSuchElementException("Patrimônio não encontrado"));
+  }
+
+  @Transactional
+  public Map<String, Object> atualizarPatrimonio(String codigo, Map<String, Object> corpo) {
+    int existe = jdbc.sql("select count(*) from patrimonio_atendimento where codigo=:codigo")
+      .param("codigo", codigo).query(Integer.class).single();
+    if (existe != 1) throw new NoSuchElementException("Patrimônio não encontrado");
+    BigDecimal valor = numero(corpo, "valorAquisicao");
+    if (valor.signum() < 0) throw new IllegalArgumentException("Valor de aquisição não pode ser negativo");
+    String dataTexto = texto(corpo, "dataAquisicao");
+    LocalDate data = dataTexto.isBlank() ? null : LocalDate.parse(dataTexto);
+    Object valorPersistido = corpo.get("valorAquisicao") == null || texto(corpo, "valorAquisicao").isBlank() ? null : valor;
+    jdbc.sql("""
+      update patrimonio_atendimento set serie=:serie,localizacao=:local,data_aquisicao=:data,
+        valor_aquisicao=:valor,observacao=:observacao where codigo=:codigo
+      """).param("serie", nulo(texto(corpo, "serie"))).param("local", nulo(texto(corpo, "local")))
+      .param("data", data).param("valor", valorPersistido).param("observacao", nulo(texto(corpo, "observacao")))
+      .param("codigo", codigo).update();
+    return buscarPatrimonio(codigo);
   }
 
   public Map<String, Object> categoria(Map<String, Object> corpo) {
@@ -137,6 +166,40 @@ public class ProdutoCatalogoService {
     } catch (Exception e) {
       throw new IllegalArgumentException("Já existe um produto com esse nome ou código", e);
     }
+  }
+
+  @Transactional
+  public Map<String, Object> atualizar(String id, Map<String, Object> corpo) {
+    Map<String, Object> atual = buscar(id);
+    String nome = texto(corpo, "nome"), marca = texto(corpo, "marca"), modelo = texto(corpo, "modelo");
+    if (nome.length() < 3 || marca.length() < 2 || modelo.isBlank())
+      throw new IllegalArgumentException("Informe nome, marca e modelo");
+    BigDecimal diaria = numero(corpo, "diaria"), semanal = numero(corpo, "semanal");
+    BigDecimal quinzenal = numero(corpo, "quinzenal"), mensal = numero(corpo, "mensal");
+    if (List.of(diaria, semanal, quinzenal, mensal).stream().anyMatch(v -> v.signum() < 0))
+      throw new IllegalArgumentException("Valores não podem ser negativos");
+    String unidade = texto(corpo, "unidadeLocacao");
+    if (unidade.isBlank()) unidade = "UNIDADE";
+    Map<String, Object> dados = new LinkedHashMap<>();
+    dados.put("id", id); dados.put("codigo", id); dados.put("categoria", atual.get("categoria"));
+    dados.put("prefixo", atual.get("prefixo")); dados.put("controle", "patrimonio");
+    dados.put("nome", nome); dados.put("marca", marca); dados.put("modelo", modelo);
+    dados.put("descricao", texto(corpo, "descricao")); dados.put("unidadeLocacao", unidade);
+    dados.put("diaria", diaria); dados.put("semanal", semanal); dados.put("quinzenal", quinzenal); dados.put("mensal", mensal);
+    dados.put("img", texto(corpo, "img").isBlank() ? atual.getOrDefault("img", "betoneira") : texto(corpo, "img"));
+    try {
+      jdbc.sql("""
+        update produto_catalogo set dados=cast(:dados as jsonb),nome=:nome,marca=:marca,modelo=:modelo,
+          descricao=:descricao,unidade_locacao=:unidade,valor_diaria=:diaria,valor_semanal=:semanal,
+          valor_quinzenal=:quinzenal,valor_mensal=:mensal where id=:id
+        """).param("dados", json.writeValueAsString(dados)).param("nome", nome).param("marca", marca)
+        .param("modelo", modelo).param("descricao", nulo(texto(corpo, "descricao"))).param("unidade", unidade)
+        .param("diaria", diaria).param("semanal", semanal).param("quinzenal", quinzenal).param("mensal", mensal)
+        .param("id", id).update();
+      jdbc.sql("update produto_atendimento set nome=:nome where id=:id").param("nome", nome).param("id", id).update();
+      return buscar(id);
+    } catch (IllegalArgumentException e) { throw e; }
+    catch (Exception e) { throw new IllegalArgumentException("Já existe um produto com esse nome", e); }
   }
 
   private void criarPatrimonios(String produtoId, String prefixo, int desejado) {

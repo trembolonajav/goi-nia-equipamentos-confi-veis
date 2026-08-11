@@ -76,10 +76,13 @@ public class AtendimentoController {
   @GetMapping("/produtos") public List<Map<String,Object>> produtos(){return produtos.listar();}
   @GetMapping("/produtos/{id}") public Map<String,Object> produto(@PathVariable String id){return produtos.buscar(id);}
   @PostMapping("/produtos") @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> salvarProduto(@RequestBody Map<String,Object> body){return produtos.salvar(body);}
+  @PutMapping("/produtos/{id}") public Map<String,Object> atualizarProduto(@PathVariable String id,@RequestBody Map<String,Object> body){return produtos.atualizar(id,body);}
   @GetMapping("/produtos/categorias/lista") public List<Map<String,Object>> categoriasProduto(){return produtos.categorias();}
   @PostMapping("/produtos/categorias") @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> categoriaProduto(@RequestBody Map<String,Object> body){return produtos.categoria(body);}
   @GetMapping("/produtos/{id}/patrimonios") public List<Map<String,Object>> patrimoniosProduto(@PathVariable String id){return produtos.patrimonios(id);}
   @GetMapping("/patrimonios") public List<Map<String,Object>> patrimonios(){return produtos.patrimonios();}
+  @GetMapping("/patrimonios/{codigo}") public Map<String,Object> patrimonio(@PathVariable String codigo){return produtos.buscarPatrimonio(codigo);}
+  @PutMapping("/patrimonios/{codigo}") public Map<String,Object> atualizarPatrimonio(@PathVariable String codigo,@RequestBody Map<String,Object> body){return produtos.atualizarPatrimonio(codigo,body);}
   @GetMapping("/composicoes") public List<Map<String,Object>> composicoes(){return composicoes.listar();}
   @PostMapping("/composicoes") @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> salvarComposicao(@RequestBody Map<String,Object> body){return composicoes.salvar(body);}
 }

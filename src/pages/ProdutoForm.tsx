@@ -1,39 +1,88 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader, Thumb, useToast } from "../components/ui";
 import { atendimentoApi, type CategoriaProdutoApi } from "../lib/api";
 import type { Produto } from "../data/mock";
 
 const IMAGENS = ["betoneira", "martelete", "compactador", "gerador", "cortadora", "lavadora", "andaime", "vibrador"];
-const vazio: Produto = { id:"", nome:"", categoria:"", controle:"patrimonio", img:"betoneira", diaria:0, semanal:0, quinzenal:0, mensal:0, caucao:0, reposicao:0, minimo:"1 diária", preparo:"1 h", inspecao:"2 h", multa:"1 diária cheia + 10%", limpeza:"Não se aplica", receita:0, custoManut:0, diasLocada:0, diasParada:0, aquisicao:0, unidades:1, marca:"", modelo:"", prefixo:"", descricao:"", unidadeLocacao:"UNIDADE" };
+const vazio: Produto = { id:"", nome:"", categoria:"", controle:"patrimonio", img:"betoneira", diaria:0, semanal:0, quinzenal:0, mensal:0, caucao:0, reposicao:0, minimo:"", preparo:"", inspecao:"", multa:"", limpeza:"", receita:0, custoManut:0, diasLocada:0, diasParada:0, aquisicao:0, unidades:1, marca:"", modelo:"", prefixo:"", descricao:"", unidadeLocacao:"UNIDADE" };
 
 export default function ProdutoForm() {
-  const nav=useNavigate(); const {toast}=useToast();
-  const [categorias,setCategorias]=useState<CategoriaProdutoApi[]>([]); const [p,setP]=useState<Produto>(vazio);
-  const [erro,setErro]=useState(""); const [salvando,setSalvando]=useState(false); const [criandoCategoria,setCriandoCategoria]=useState(false);
-  const [categoriaNome,setCategoriaNome]=useState(""); const [categoriaPrefixo,setCategoriaPrefixo]=useState("");
-  useEffect(()=>{ atendimentoApi.categoriasProduto().then(setCategorias).catch(e=>setErro(e instanceof Error?e.message:"Não foi possível carregar as categorias.")); },[]);
-  const campo=<K extends keyof Produto>(k:K,v:Produto[K])=>setP(x=>({...x,[k]:v}));
-  const selecionarCategoria=(nome:string)=>{const c=categorias.find(x=>x.nome===nome);setP(x=>({...x,categoria:nome,prefixo:c?.prefixo||"",id:""}));};
-  async function criarCategoria(){setErro("");try{const c=await atendimentoApi.salvarCategoriaProduto({nome:categoriaNome,prefixo:categoriaPrefixo});setCategorias(x=>[...x,c].sort((a,b)=>a.nome.localeCompare(b.nome)));selecionarCategoria(c.nome);setCriandoCategoria(false);setCategoriaNome("");setCategoriaPrefixo("");}catch(e){setErro(e instanceof Error?e.message:"Não foi possível criar a categoria.");}}
-  async function salvar(){setErro("");if(!p.categoria||p.nome.trim().length<3||!p.marca?.trim()||!p.modelo?.trim())return setErro("Informe categoria, nome, marca e modelo.");if([p.diaria,p.semanal,p.quinzenal,p.mensal,p.reposicao].some(v=>Number(v)<0)||p.diaria<=0)return setErro("Informe preços válidos; a diária deve ser maior que zero.");setSalvando(true);try{const {id:_id,aquisicao:_aquisicao,...dados}=p;const salvo=await atendimentoApi.salvarProduto({...dados,controle:"patrimonio",unidades:Math.max(1,Number(p.unidades)||1)});toast(`Produto ${salvo.nome} cadastrado.`);nav(`/app/produtos/${salvo.id}`);}catch(e){setErro(e instanceof Error?e.message:"Não foi possível salvar o produto.");}finally{setSalvando(false);}}
-  return <main className="page" style={{maxWidth:1050}}><button className="link-back" onClick={()=>nav("/app/produtos")}>← Produtos</button><PageHeader title="Novo equipamento" sub="O produto define o cadastro comercial; cada unidade física recebe patrimônio e histórico próprios."/>
-    <div className="stack" style={{gap:18,marginTop:22}}><section className="card"><h2 className="h2">Identificação</h2><div className="grid product-form-grid">
-      <label className="field"><span>Categoria</span><select className="select" value={p.categoria} onChange={e=>selecionarCategoria(e.target.value)}><option value="">Selecione...</option>{categorias.map(c=><option key={c.id}>{c.nome}</option>)}</select></label>
-      <div className="field"><span>Categoria inexistente</span><button type="button" className="btn btn-ghost" onClick={()=>setCriandoCategoria(true)}>Cadastrar categoria</button></div>
-      <label className="field"><span>Código interno automático</span><input className="input" value="" readOnly placeholder={p.categoria?"Gerado ao salvar":"Selecione a categoria"}/></label>
-      <label className="field"><span>Quantidade de patrimônios</span><input className="input" type="number" min="1" value={p.unidades} onChange={e=>campo("unidades",Number(e.target.value))}/></label>
-      <label className="field"><span>Nome do equipamento</span><input className="input" value={p.nome} onChange={e=>campo("nome",e.target.value)} placeholder="Betoneira 400 litros"/></label>
-      <label className="field"><span>Marca</span><input className="input" value={p.marca} onChange={e=>campo("marca",e.target.value)} placeholder="Menegotti"/></label>
-      <label className="field"><span>Modelo</span><input className="input" value={p.modelo} onChange={e=>campo("modelo",e.target.value)} placeholder="Prime 400"/></label>
-      <label className="field"><span>Unidade de locação</span><select className="select" value={p.unidadeLocacao} onChange={e=>campo("unidadeLocacao",e.target.value)}><option value="UNIDADE">Unidade</option><option value="TORRE">Torre</option><option value="CONJUNTO">Conjunto</option></select></label>
-      <label className="field" style={{gridColumn:"1 / -1"}}><span>Descrição</span><textarea className="textarea" value={p.descricao} onChange={e=>campo("descricao",e.target.value)} placeholder="Características e aplicação do equipamento"/></label>
-    </div><div className="uplabel" style={{marginTop:16}}>Imagem ilustrativa</div><div className="product-image-picker">{IMAGENS.map(img=><button type="button" className={p.img===img?"selected":""} key={img} onClick={()=>campo("img",img)}><Thumb img={img} w={70} h={58}/><small>{img}</small></button>)}</div></section>
-    <section className="card"><h2 className="h2">Tabela de locação</h2><div className="grid product-price-grid">{([['diaria','Diária'],['semanal','Semanal'],['quinzenal','Quinzenal'],['mensal','Mensal'],['reposicao','Reposição']] as [keyof Produto,string][]).map(([k,n])=><Money key={k} nome={n} valor={Number(p[k]||0)} set={v=>campo(k,v)}/>)}</div></section>
-    <section className="card"><h2 className="h2">Regras operacionais</h2><div className="grid product-form-grid"><Text nome="Período mínimo" valor={p.minimo} set={v=>campo("minimo",v)}/><Text nome="Preparo" valor={p.preparo} set={v=>campo("preparo",v)}/><Text nome="Inspeção" valor={p.inspecao} set={v=>campo("inspecao",v)}/><Text nome="Atraso" valor={p.multa} set={v=>campo("multa",v)}/><Text nome="Limpeza" valor={p.limpeza} set={v=>campo("limpeza",v)}/></div></section>
-    {erro&&<div className="inline-error">{erro}</div>}<div className="row"><button className="btn btn-primary" disabled={salvando} onClick={salvar}>{salvando?"Salvando...":"Salvar equipamento"}</button><button className="btn btn-ghost" onClick={()=>nav("/app/produtos")}>Cancelar</button></div></div>
-    {criandoCategoria&&<div className="modal-backdrop" role="presentation"><div className="modal card" role="dialog" aria-modal="true" aria-labelledby="categoria-title"><h2 className="h2" id="categoria-title">Nova categoria</h2><p className="section-note">O prefixo será usado nos códigos automáticos dos produtos e patrimônios.</p><div className="grid product-form-grid"><label className="field"><span>Nome</span><input autoFocus className="input" value={categoriaNome} onChange={e=>setCategoriaNome(e.target.value)}/></label><label className="field"><span>Prefixo</span><input className="input" maxLength={5} value={categoriaPrefixo} onChange={e=>setCategoriaPrefixo(e.target.value.replace(/[^a-z]/gi,"").toUpperCase())} placeholder="BET"/></label></div><div className="row" style={{marginTop:18}}><button className="btn btn-primary" onClick={criarCategoria}>Salvar categoria</button><button className="btn btn-ghost" onClick={()=>setCriandoCategoria(false)}>Cancelar</button></div></div></div>}
+  const nav = useNavigate();
+  const { id } = useParams();
+  const { toast } = useToast();
+  const editando = Boolean(id);
+  const [categorias, setCategorias] = useState<CategoriaProdutoApi[]>([]);
+  const [p, setP] = useState<Produto>(vazio);
+  const [carregando, setCarregando] = useState(editando);
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [criandoCategoria, setCriandoCategoria] = useState(false);
+  const [categoriaNome, setCategoriaNome] = useState("");
+  const [categoriaPrefixo, setCategoriaPrefixo] = useState("");
+
+  useEffect(() => {
+    const requisicoes: Promise<unknown>[] = [atendimentoApi.categoriasProduto().then(setCategorias)];
+    if (id) requisicoes.push(atendimentoApi.produto(id).then(setP));
+    Promise.all(requisicoes)
+      .catch(e => setErro(e instanceof Error ? e.message : "Não foi possível carregar o cadastro."))
+      .finally(() => setCarregando(false));
+  }, [id]);
+
+  const campo = <K extends keyof Produto>(k: K, v: Produto[K]) => setP(x => ({ ...x, [k]: v }));
+  const selecionarCategoria = (nome: string) => {
+    const c = categorias.find(x => x.nome === nome);
+    setP(x => ({ ...x, categoria:nome, prefixo:c?.prefixo || "", id:"" }));
+  };
+
+  async function criarCategoria() {
+    setErro("");
+    try {
+      const c = await atendimentoApi.salvarCategoriaProduto({ nome:categoriaNome, prefixo:categoriaPrefixo });
+      setCategorias(x => [...x, c].sort((a,b) => a.nome.localeCompare(b.nome)));
+      selecionarCategoria(c.nome);
+      setCriandoCategoria(false); setCategoriaNome(""); setCategoriaPrefixo("");
+    } catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível criar a categoria."); }
+  }
+
+  async function salvar() {
+    setErro("");
+    if (!p.categoria || p.nome.trim().length < 3 || !p.marca?.trim() || !p.modelo?.trim()) return setErro("Informe categoria, nome, marca e modelo.");
+    if ([p.diaria,p.semanal,p.quinzenal,p.mensal].some(v => Number(v) < 0) || p.diaria <= 0) return setErro("Informe preços válidos; a diária deve ser maior que zero.");
+    setSalvando(true);
+    const dados = { nome:p.nome.trim(), marca:p.marca.trim(), modelo:p.modelo.trim(), descricao:p.descricao?.trim() || "", unidadeLocacao:p.unidadeLocacao || "UNIDADE", diaria:Number(p.diaria), semanal:Number(p.semanal), quinzenal:Number(p.quinzenal), mensal:Number(p.mensal), img:p.img };
+    try {
+      const salvo = editando && id
+        ? await atendimentoApi.atualizarProduto(id, dados)
+        : await atendimentoApi.salvarProduto({ ...dados, categoria:p.categoria, prefixo:p.prefixo, controle:"patrimonio", unidades:Math.max(1, Number(p.unidades) || 1) });
+      toast(editando ? `Cadastro de ${salvo.nome} atualizado.` : `Produto ${salvo.nome} cadastrado.`);
+      nav(`/app/produtos/${salvo.id}`);
+    } catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível salvar o produto."); }
+    finally { setSalvando(false); }
+  }
+
+  if (carregando) return <main className="page"><div className="empty">Carregando cadastro...</div></main>;
+  return <main className="page" style={{maxWidth:1050}}>
+    <button className="link-back" onClick={() => nav(editando ? `/app/produtos/${id}` : "/app/produtos")}>← {editando ? "Equipamento" : "Produtos"}</button>
+    <PageHeader title={editando ? "Editar equipamento" : "Novo equipamento"} sub={editando ? "Atualize os dados comerciais. Código, categoria e patrimônios permanecem preservados." : "O produto define o cadastro comercial; cada unidade física recebe patrimônio e histórico próprios."}/>
+    <div className="stack" style={{gap:18,marginTop:22}}>
+      <section className="card"><h2 className="h2">Identificação</h2><div className="grid product-form-grid">
+        <label className="field"><span>Categoria</span><select className="select" value={p.categoria} disabled={editando} onChange={e => selecionarCategoria(e.target.value)}><option value="">Selecione...</option>{categorias.map(c => <option key={c.id}>{c.nome}</option>)}</select></label>
+        {!editando && <div className="field"><span>Categoria inexistente</span><button type="button" className="btn btn-ghost" onClick={() => setCriandoCategoria(true)}>Cadastrar categoria</button></div>}
+        <label className="field"><span>Código interno</span><input className="input" value={editando ? p.id : ""} readOnly placeholder={p.categoria ? "Gerado ao salvar" : "Selecione a categoria"}/></label>
+        {!editando && <label className="field"><span>Quantidade inicial de patrimônios</span><input className="input" type="number" min="1" value={p.unidades} onChange={e => campo("unidades", Number(e.target.value))}/></label>}
+        <label className="field"><span>Nome do equipamento</span><input className="input" value={p.nome} onChange={e => campo("nome",e.target.value)} placeholder="Betoneira 400 litros"/></label>
+        <label className="field"><span>Marca</span><input className="input" value={p.marca} onChange={e => campo("marca",e.target.value)} placeholder="Menegotti"/></label>
+        <label className="field"><span>Modelo</span><input className="input" value={p.modelo} onChange={e => campo("modelo",e.target.value)} placeholder="Prime 400"/></label>
+        <label className="field"><span>Unidade de locação</span><select className="select" value={p.unidadeLocacao} onChange={e => campo("unidadeLocacao",e.target.value)}><option value="UNIDADE">Unidade</option><option value="TORRE">Torre</option><option value="CONJUNTO">Conjunto</option></select></label>
+        <label className="field" style={{gridColumn:"1 / -1"}}><span>Descrição</span><textarea className="textarea" value={p.descricao} onChange={e => campo("descricao",e.target.value)} placeholder="Características e aplicação do equipamento"/></label>
+      </div><div className="uplabel" style={{marginTop:16}}>Imagem ilustrativa</div><div className="product-image-picker">{IMAGENS.map(img => <button type="button" className={p.img===img ? "selected" : ""} key={img} onClick={() => campo("img",img)}><Thumb img={img} w={70} h={58}/><small>{img}</small></button>)}</div></section>
+      <section className="card"><h2 className="h2">Tabela de locação</h2><div className="grid product-price-grid">{([['diaria','Diária'],['semanal','Semanal'],['quinzenal','Quinzenal'],['mensal','Mensal']] as [keyof Produto,string][]).map(([k,n]) => <Money key={k} nome={n} valor={Number(p[k]||0)} set={v => campo(k,v)}/>)}</div></section>
+      {erro && <div className="inline-error">{erro}</div>}
+      <div className="row"><button className="btn btn-primary" disabled={salvando} onClick={salvar}>{salvando ? "Salvando..." : editando ? "Salvar alterações" : "Salvar equipamento"}</button><button className="btn btn-ghost" onClick={() => nav(editando ? `/app/produtos/${id}` : "/app/produtos")}>Cancelar</button></div>
+    </div>
+    {criandoCategoria && <div className="modal-backdrop" role="presentation"><div className="modal card" role="dialog" aria-modal="true" aria-labelledby="categoria-title"><h2 className="h2" id="categoria-title">Nova categoria</h2><p className="section-note">O prefixo será usado nos códigos automáticos dos produtos e patrimônios.</p><div className="grid product-form-grid"><label className="field"><span>Nome</span><input autoFocus className="input" value={categoriaNome} onChange={e => setCategoriaNome(e.target.value)}/></label><label className="field"><span>Prefixo</span><input className="input" maxLength={5} value={categoriaPrefixo} onChange={e => setCategoriaPrefixo(e.target.value.replace(/[^a-z]/gi,"").toUpperCase())} placeholder="BET"/></label></div><div className="row" style={{marginTop:18}}><button className="btn btn-primary" onClick={criarCategoria}>Salvar categoria</button><button className="btn btn-ghost" onClick={() => setCriandoCategoria(false)}>Cancelar</button></div></div></div>}
   </main>;
 }
-function Money({nome,valor,set}:{nome:string;valor:number;set:(v:number)=>void}){return <label className="field"><span>{nome}</span><div className="money-input"><span>R$</span><input type="number" min="0" value={valor||""} onChange={e=>set(Number(e.target.value))}/></div></label>}
-function Text({nome,valor,set}:{nome:string;valor:string;set:(v:string)=>void}){return <label className="field"><span>{nome}</span><input className="input" value={valor} onChange={e=>set(e.target.value)}/></label>}
+
+function Money({nome,valor,set}:{nome:string;valor:number;set:(v:number)=>void}) { return <label className="field"><span>{nome}</span><div className="money-input"><span>R$</span><input type="number" min="0" value={valor || ""} onChange={e => set(Number(e.target.value))}/></div></label>; }

@@ -12,6 +12,7 @@ import ClienteForm from "./pages/ClienteForm";
 import Produtos from "./pages/Produtos";
 import ProdutoForm from "./pages/ProdutoForm";
 import ProdutoDetalhe from "./pages/ProdutoDetalhe";
+import PatrimonioDetalhe from "./pages/PatrimonioDetalhe";
 import Patrimonios from "./pages/Patrimonios";
 import Composicoes from "./pages/Composicoes";
 import Disponibilidade from "./pages/Disponibilidade";
@@ -77,6 +78,7 @@ export default function App() {
                 <Route path="pedidos/:num/orcamento" element={<Orcamento />} />
                 <Route path="clientes" element={<Clientes />} />
                 <Route path="clientes/novo" element={<ClienteForm />} />
+                <Route path="clientes/:id/editar" element={<ClienteForm />} />
                 <Route path="clientes/:id" element={<ClienteDetalhe />} />
                 <Route path="contratos" element={<Contratos />} />
                 <Route path="contratos/:numero" element={<ContratoDetalhe />} />
@@ -88,7 +90,9 @@ export default function App() {
                 <Route path="ocorrencias" element={<EventosOperacionais tipo="OCORRENCIA" />} />
                 <Route path="produtos" element={<Produtos />} />
                 <Route path="produtos/novo" element={<ProdutoForm />} />
+                <Route path="produtos/:id/editar" element={<ProdutoForm />} />
                 <Route path="produtos/:id" element={<ProdutoDetalhe />} />
+                <Route path="patrimonios/:codigo" element={<PatrimonioDetalhe />} />
                 <Route path="patrimonios" element={<Patrimonios />} />
                 <Route path="composicoes" element={<Composicoes />} />
                 <Route path="disponibilidade" element={<Disponibilidade />} />

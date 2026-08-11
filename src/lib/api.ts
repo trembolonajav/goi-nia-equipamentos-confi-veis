@@ -1,7 +1,7 @@
 import type { Cliente, Contrato, Pedido, Produto, Patrimonio } from "../data/mock";
 
 export interface ManutencaoApi { id: number; patrimonio: string; produto: string; contrato: string; motivo: string; status: "ABERTA" | "CONCLUIDA"; criadoEm: string; concluidoEm: string | null; }
-export interface PatrimonioApi{codigo:string;produtoId:string;produto:string;serie:string;estado:string;local?:string|null}
+export interface PatrimonioApi{codigo:string;produtoId:string;produto:string;serie:string;estado:string;local?:string|null;marca?:string;modelo?:string;dataAquisicao?:string|null;valorAquisicao?:number|null;observacao?:string|null}
 export interface AgendaApi { id:number; contrato:string; clienteId:string; cliente:string; tipo:"ENTREGA"|"COLETA"; data:string; hora:string; destino:string; endereco:string; status:"PENDENTE"|"CONCLUIDA"; }
 export interface ObraApi { clienteId:string; cliente:string; nome:string; endereco:string; restricao:string; frete:number; situacao:string; }
 export interface CobrancaApi { id:number; contrato:string; clienteId:string; cliente:string; descricao:string; vencimento:string; valor:number; recebido:number; saldo:number; status:"ABERTA"|"PARCIAL"|"PAGA"|"VENCIDA"; }
@@ -78,9 +78,12 @@ export const atendimentoApi = {
   produtos:()=>request<Produto[]>("/atendimento/produtos"),
   produto:(id:string)=>request<Produto>(`/atendimento/produtos/${id}`),
   salvarProduto:(produto:Partial<Produto>)=>request<Produto>("/atendimento/produtos",{method:"POST",body:JSON.stringify(produto)}),
+  atualizarProduto:(id:string,produto:Partial<Produto>)=>request<Produto>(`/atendimento/produtos/${id}`,{method:"PUT",body:JSON.stringify(produto)}),
   categoriasProduto:()=>request<CategoriaProdutoApi[]>("/atendimento/produtos/categorias/lista"),
   salvarCategoriaProduto:(categoria:{nome:string;prefixo:string})=>request<CategoriaProdutoApi>("/atendimento/produtos/categorias",{method:"POST",body:JSON.stringify(categoria)}),
   patrimoniosProduto:(id:string)=>request<Patrimonio[]>(`/atendimento/produtos/${id}/patrimonios`),
+  patrimonio:(codigo:string)=>request<PatrimonioApi>(`/atendimento/patrimonios/${encodeURIComponent(codigo)}`),
+  atualizarPatrimonio:(codigo:string,dados:Partial<PatrimonioApi>)=>request<PatrimonioApi>(`/atendimento/patrimonios/${encodeURIComponent(codigo)}`,{method:"PUT",body:JSON.stringify(dados)}),
   composicoes:()=>request<ComposicaoApi[]>("/atendimento/composicoes"),
   salvarComposicao:(c:Partial<ComposicaoApi>)=>request<ComposicaoApi>("/atendimento/composicoes",{method:"POST",body:JSON.stringify(c)}),
   documentosContrato: (numero:string) => request<DocumentoClienteApi[]>(`/atendimento/contratos/${numero}/documentos`),

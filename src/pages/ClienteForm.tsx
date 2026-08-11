@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../data/store";
 import { useToast } from "../components/ui";
 import { atendimentoApi } from "../lib/api";
+import type { Cliente } from "../data/mock";
 
 export default function ClienteForm() {
-  const { addCliente, clientes } = useStore();
+  const { id } = useParams();
+  const { addCliente, atualizarCliente, getCliente, clientes } = useStore();
   const { toast } = useToast();
   const nav = useNavigate();
 
@@ -20,6 +22,19 @@ export default function ClienteForm() {
   const [obs, setObs] = useState("");
   const [erro, setErro] = useState("");
   const [anexos, setAnexos] = useState<{ tipo: string; arquivo: File }[]>([]);
+  const atual = id ? getCliente(id) : undefined;
+  const editando = Boolean(id);
+
+  useEffect(() => {
+    if (!atual) return;
+    const pessoaJuridica = atual.tipoPessoa === "PJ" || atual.tipo === "Pessoa jurídica";
+    setTipo(pessoaJuridica ? "Pessoa jurídica" : "Pessoa física");
+    setNome(atual.nomeRazaoSocial || atual.nome || ""); setDoc(formatarDocumento(atual.cpfCnpj || atual.doc || "", pessoaJuridica));
+    setTel(formatarTelefone(atual.telefone || atual.tel || "")); setEmail(atual.email || "");
+    setCep(formatarCep(atual.cep || "")); setLogradouro(atual.logradouro || ""); setNumeroEndereco(atual.numeroEndereco || "");
+    setComplemento(atual.complemento || ""); setBairro(atual.bairro || ""); setCidade(atual.cidade || ""); setUf(atual.uf || "");
+    setQuadra(atual.quadra || ""); setLote(atual.lote || ""); setCondicao(atual.condicao || "Pagamento à vista"); setObs(atual.obs || "");
+  }, [atual]);
 
   const pj = tipo === "Pessoa jurídica";
 
@@ -35,15 +50,17 @@ export default function ClienteForm() {
     if(logradouro.trim().length<3||!numeroEndereco.trim()||bairro.trim().length<2||cidade.trim().length<2||uf.trim().length!==2)return setErro("Preencha logradouro, número, bairro, cidade e UF.");
     const endereco=formatarEndereco({logradouro,numeroEndereco,complemento,bairro,cidade,uf,cep,quadra,lote});
     const limpo = pj ? doc.toUpperCase().replace(/[^A-Z0-9]/g,"") : doc.replace(/\D/g, "");
-    if (limpo && clientes.some((c) => normalizarDocumento(c.cpfCnpj || c.doc, pj) === limpo && limpo.length > 4)) return setErro("Já existe um cliente com esse documento. Documento duplicado é bloqueado.");
+    if (limpo && clientes.some((c) => c.id !== id && normalizarDocumento(c.cpfCnpj || c.doc, pj) === limpo && limpo.length > 4)) return setErro("Já existe um cliente com esse documento. Documento duplicado é bloqueado.");
     try {
-      const c = await addCliente({
-        tipo, tipoPessoa:pj?"PJ":"PF", nome: nome.trim(), nomeRazaoSocial:nome.trim(), cpfCnpj:limpo, doc: (pj ? "CNPJ " : "CPF ") + doc.trim(), tel: tel.trim(), telefone:tel.trim(), whatsapp:tel.trim(), email: email.trim(),
-        situacao: "Ativo", condicao, endereco,cep,logradouro,numeroEndereco,complemento,bairro,cidade,uf:uf.toUpperCase(),quadra,lote, obs: obs.trim(), resp: "O próprio",
-        docs: anexos.map((a) => ({ nome: a.tipo, ok: true })),
-      });
+      const dados: Partial<Cliente> = {
+        tipo, tipoPessoa:pj ? "PJ" : "PF", nome: nome.trim(), nomeRazaoSocial:nome.trim(), cpfCnpj:limpo, doc: (pj ? "CNPJ " : "CPF ") + doc.trim(), tel: tel.trim(), telefone:tel.trim(), whatsapp:tel.trim(), email: email.trim(),
+        situacao: atual?.situacao || "Ativo", condicao, endereco,cep,logradouro,numeroEndereco,complemento,bairro,cidade,uf:uf.toUpperCase(),quadra,lote, obs: obs.trim(), resp: atual?.resp || "O próprio",
+        docs: atual?.docs || [], obras: atual?.obras || [], desde: atual?.desde || "", aviso: atual?.aviso || "", inscricao: atual?.inscricao || "",
+      };
+      const c: Cliente = editando && atual ? { ...atual, ...dados, id: atual.id } : await addCliente(dados);
+      if (editando) await atualizarCliente(c);
       for (const anexo of anexos) await atendimentoApi.anexarDocumento(c.id, anexo.tipo, anexo.arquivo);
-      toast(`Cliente ${c.nome} cadastrado.`);
+      toast(`Cliente ${c.nome} ${editando ? "atualizado" : "cadastrado"}.`);
       nav(`/app/clientes/${c.id}`);
     } catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível salvar no servidor."); }
   }
@@ -51,8 +68,8 @@ export default function ClienteForm() {
   return (
     <main className="page" style={{ maxWidth: 920 }}>
       <button className="link-back" onClick={() => nav("/app/clientes")}>← Clientes</button>
-      <h1 className="h1" style={{ marginTop: 12 }}>Cadastro de cliente</h1>
-      <p className="lead">CPF ou CNPJ duplicado é bloqueado. Cadastro rápido agora, documentos complementares depois.</p>
+      <h1 className="h1" style={{ marginTop: 12 }}>{editando ? "Editar cliente" : "Cadastro de cliente"}</h1>
+      <p className="lead">CPF ou CNPJ duplicado é bloqueado. O histórico e os documentos existentes são preservados.</p>
 
       <div className="stack" style={{ gap: 20, marginTop: 24 }}>
         <section className="card">
@@ -118,8 +135,8 @@ export default function ClienteForm() {
 
         {erro && <div className="card-tight" style={{ borderColor: "var(--red)", color: "var(--red)", fontWeight: 600 }}>{erro}</div>}
         <div className="row wrap" style={{ gap: 8 }}>
-          <button className="btn btn-primary" style={{ minHeight: 48 }} onClick={salvar}>Salvar cliente</button>
-          <button className="btn btn-ghost" style={{ minHeight: 48 }} onClick={() => nav("/app/clientes")}>Cancelar</button>
+          <button className="btn btn-primary" style={{ minHeight: 48 }} onClick={salvar}>{editando ? "Salvar alterações" : "Salvar cliente"}</button>
+          <button className="btn btn-ghost" style={{ minHeight: 48 }} onClick={() => nav(editando ? `/app/clientes/${id}` : "/app/clientes")}>Cancelar</button>
         </div>
       </div>
     </main>
