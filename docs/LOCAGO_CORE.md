@@ -124,3 +124,25 @@ Não existe `periodo_cobranca` separado nesta fase; período inicial/final perte
 6. Autenticação de backend e auditoria transversal.
 
 Cada etapa inclui migração compatível, API, tela funcional e teste do fluxo principal.
+
+## Marco 2 — normalização comercial
+
+```text
+ORCAMENTO
+  -> ORCAMENTO_VERSAO
+      -> ORCAMENTO_ITEM / ORCAMENTO_SERVICO
+          -> PEDIDO_ITEM / PEDIDO_SERVICO
+              -> CONTRATO_ITEM / CONTRATO_SERVICO
+                  -> CONTRATO_ITEM_PATRIMONIO
+```
+
+- A versão é identificada pelo seu `id`; posição em array nunca é identidade comercial.
+- Uma versão enviada é imutável. Qualquer renegociação cria uma nova versão e preserva a anterior.
+- Somente uma versão com estado `ENVIADA` pode ser aprovada.
+- A aprovação é idempotente por `orcamento_versao_id` e executada em uma única transação.
+- O backend carrega produtos, serviços, preços e snapshots persistidos; o frontend envia somente os identificadores e quantidades selecionados.
+- Antes de materializar o pedido, o backend valida itens e disponibilidade. Qualquer falha desfaz pedido, contrato, reservas e cobrança.
+- `pedido_item` referencia o item exato da versão aprovada; `contrato_item` referencia o item exato do pedido.
+- A mesma cadeia existe para serviços em `pedido_servico` e `contrato_servico`.
+- Descrição, marca, modelo, natureza e valores são snapshots históricos e não acompanham alterações futuras dos cadastros.
+- Os JSONs antigos permanecem apenas como projeção de compatibilidade para telas e registros anteriores; não são a fonte comercial dos novos fluxos.

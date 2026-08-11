@@ -182,11 +182,12 @@ export const COMPOSICOES = [
 ];
 
 export interface Pedido {
+  orcamentoId?: number; versaoId?: number;
   num: string; clienteId: string; obra: string; entrega: string; inicio: string; fim: string; status: string; criado: string; autor: string;
-  itens: { prod: string; qtd: number }[]; servicos: string[]; desconto: number; forma: string;
-  servicosDetalhes?: { nome:string; natureza:string; valor:number }[];
+  itens: { id?:number; prod: string; qtd: number; nome?:string; tipoPreco?:string; valorUnitario?:number; valor?:number }[]; servicos: string[]; desconto: number; forma: string;
+  servicosDetalhes?: { id?:number; nome:string; natureza:string; valor:number }[];
   frete?: number;
-  versoes: { v: number; valor: number; quando: string; nota: string; ativa?: boolean }[];
+  versoes: { id?:number; v: number; valor: number; quando: string; nota: string; ativa?: boolean }[];
   contrato?: string; linha: { q: string; t: string; d: string; a: string }[];
 }
 

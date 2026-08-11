@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "../data/store";
-import { PRODUTOS, EXTRAS, ETAPAS } from "../data/mock";
+import { ETAPAS } from "../data/mock";
 import { Tag, Thumb, useToast } from "../components/ui";
-import { brl, dias as diasEntre, melhorPreco, disponivel } from "../lib/calc";
+import { brl, dias as diasEntre, melhorPreco } from "../lib/calc";
 import { atendimentoApi,type ServicoApi } from "../lib/api";
 
 const FORMAS = ["Pix", "Boleto", "Dinheiro", "Cartão de crédito", "Cartão de débito"];
@@ -11,7 +11,7 @@ const NIVEL = { bloqueio: { cor: "var(--red)", marca: "×" }, autorizacao: { cor
 type Nivel = keyof typeof NIVEL;
 
 export default function NovaLocacao() {
-  const { clientes, getCliente, criarPedido, aprovarPedido, atualizarCliente } = useStore();
+  const { clientes, produtos, getCliente, criarPedido, aprovarPedido, atualizarCliente } = useStore();
   const { toast } = useToast();
   const nav = useNavigate();
   const [params] = useSearchParams();
@@ -25,8 +25,8 @@ export default function NovaLocacao() {
   const [inicio, setInicio] = useState(hoje);
   const [fim, setFim] = useState(hoje);
   const [carrinho, setCarrinho] = useState<Record<string, number>>(() => { const pid = params.get("produto"); return pid ? { [pid]: 1 } : {}; });
-  const [extrasSel, setExtrasSel] = useState<boolean[]>(EXTRAS.map(() => false));
-  const [servicosCatalogo,setServicosCatalogo]=useState<ServicoApi[]>(EXTRAS.map((e,i)=>({id:i,nome:e.nome,natureza:e.natureza,valor:e.valor,ativo:true})));
+  const [extrasSel, setExtrasSel] = useState<boolean[]>([]);
+  const [servicosCatalogo,setServicosCatalogo]=useState<ServicoApi[]>([]);
   const [novaObra,setNovaObra]=useState(false);
   const [obraForm,setObraForm]=useState({nome:"",endereco:"",restricao:"",frete:""});
   const [forma, setForma] = useState("Pix");
@@ -39,10 +39,10 @@ export default function NovaLocacao() {
   const d = diasEntre(inicio, fim);
 
   const itens = useMemo(() => Object.keys(carrinho).filter((k) => carrinho[k] > 0).map((id) => {
-    const p = PRODUTOS.find((x) => x.id === id)!;
+    const p = produtos.find((x) => x.id === id)!;
     const r = melhorPreco(p, d);
     return { produto: p, qtd: carrinho[id], valorUnit: r.v, detalhe: Object.keys(r.uso).map((k) => r.uso[k] + " × " + k).join(" + ") };
-  }), [carrinho, d]);
+  }), [carrinho, d, produtos]);
 
   const locacao = itens.reduce((a, i) => a + i.valorUnit * i.qtd, 0);
   const extras = servicosCatalogo.reduce((a, e, i) => a + (extrasSel[i] ? Number(e.valor) : 0), 0);
@@ -64,10 +64,10 @@ export default function NovaLocacao() {
     }
     if (!itens.length) add("bloqueio", "Sem equipamentos", "O contrato precisa de pelo menos um item.", "Adicione equipamentos na etapa 4.");
     else {
-      const semEstoque = itens.filter((i) => i.qtd > disponivel(i.produto.id, inicio, fim));
+      const semEstoque = itens.filter((i) => i.qtd > Number(i.produto.unidades || 0));
       if (semEstoque.length) add("bloqueio", "Quantidade acima da disponibilidade", semEstoque.map((i) => i.produto.nome).join(", "), "Reduza a quantidade ou mude as datas.");
       else {
-        const apertado = itens.filter((i) => disponivel(i.produto.id, inicio, fim) - i.qtd === 0);
+        const apertado = itens.filter((i) => Number(i.produto.unidades || 0) - i.qtd === 0);
         if (apertado.length) add("aviso", "Última unidade disponível", apertado.map((i) => i.produto.nome).join(", ") + " esgota no período.", "Nenhuma folga para troca em caso de defeito.");
         else add("ok", "Disponibilidade no período", itens.length + " item(ns) confirmados para " + d + " dias.");
       }
@@ -98,7 +98,7 @@ export default function NovaLocacao() {
   async function fechar(tipo: "orcamento" | "contrato") {
     if (temBloqueio || !cli) return;
     try {
-      const detalhes=servicosCatalogo.filter((_,i)=>extrasSel[i]).map(e=>({nome:e.nome,natureza:e.natureza,valor:Number(e.valor)}));const servicos = detalhes.map((e) => e.nome);
+      const detalhes=servicosCatalogo.filter((_,i)=>extrasSel[i]).map(e=>({id:e.id,nome:e.nome,natureza:e.natureza,valor:Number(e.valor)}));const servicos = detalhes.map((e) => e.nome);
       const ped = await criarPedido({ clienteId: cli.id, obra: entrega === "obra" && obraSel ? obraSel.nome : "", entrega, inicio, fim, carrinho, servicos, servicosDetalhes:detalhes, frete, forma, status: tipo === "orcamento" ? "Orçamento enviado" : "Aguardando aprovação", valor: total });
       if (tipo === "orcamento") { toast(`Orçamento ${ped.num} gerado.`); setFeito({ tipo, num: ped.num }); }
       else { const ct = await aprovarPedido(ped.num); toast(`Contrato ${ct?.numero} gerado.`); setFeito({ tipo, num: ct?.numero || ped.num }); }
@@ -191,8 +191,8 @@ export default function NovaLocacao() {
               <h2 className="h2" style={{ marginBottom: 4 }}>Equipamentos</h2>
               <p className="section-note">A disponibilidade considera o período escolhido, não a situação de hoje.</p>
               <div className="stack" style={{ gap: 8 }}>
-                {PRODUTOS.map((p) => {
-                  const disp = disponivel(p.id, inicio, fim);
+                {produtos.map((p) => {
+                  const disp = Math.max(0, Number(p.unidades || 0));
                   const q = carrinho[p.id] || 0;
                   const r = melhorPreco(p, d);
                   return (

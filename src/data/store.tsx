@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import {
   PRODUTOS, CLIENTES, CONTRATOS, PEDIDOS, EXTRAS,
   type Cliente, type Contrato, type Pedido,
+  type Produto,
 } from "./mock";
 import { melhorPreco, dias as diasEntre } from "../lib/calc";
 import { atendimentoApi } from "../lib/api";
@@ -26,6 +27,7 @@ interface StoreApi {
   clientes: Cliente[];
   pedidos: Pedido[];
   contratos: Contrato[];
+  produtos: Produto[];
   getCliente: (id: string) => Cliente | undefined;
   getContrato: (n: string) => Contrato | undefined;
   getPedido: (n: string) => Pedido | undefined;
@@ -43,7 +45,7 @@ interface StoreApi {
 interface CriarPedidoArgs {
   clienteId: string; obra: string; entrega: string; inicio: string; fim: string;
   carrinho: Record<string, number>; servicos: string[]; forma: string; status: string; valor: number;
-  servicosDetalhes?: { nome:string; natureza:string; valor:number }[];
+  servicosDetalhes?: { id?:number; nome:string; natureza:string; valor:number }[];
   frete?: number;
 }
 
@@ -53,9 +55,11 @@ const Ctx = createContext<StoreApi | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<Persist>(load);
+  const [produtos,setProdutos]=useState<Produto[]>([]);
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(db)); }, [db]);
   useEffect(() => {
-    Promise.all([atendimentoApi.clientes(), atendimentoApi.pedidos(), atendimentoApi.contratos()]).then(([clientesApi, pedidosApi, contratosApi]) => {
+    Promise.all([atendimentoApi.clientes(), atendimentoApi.pedidos(), atendimentoApi.contratos(), atendimentoApi.produtos()]).then(([clientesApi, pedidosApi, contratosApi, produtosApi]) => {
+      setProdutos(produtosApi);
       setDb((atual) => ({
         ...atual,
         clientes: [...clientesApi, ...atual.clientes.filter((local) => !clientesApi.some((api) => api.id === local.id))],
@@ -69,10 +73,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     clientes: db.clientes,
     pedidos: db.pedidos,
     contratos: db.contratos,
+    produtos,
     getCliente: (id) => db.clientes.find((c) => c.id === id),
     getContrato: (n) => db.contratos.find((c) => c.numero === n),
     getPedido: (n) => db.pedidos.find((p) => p.num === n),
-    getProduto,
+    getProduto: (id) => produtos.find((p)=>p.id===id) ?? getProduto(id),
 
     addCliente: async (c) => {
       const novo: Cliente = {
@@ -91,6 +96,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
 
     criarPedido: async (a) => {
+      {
+        const pedido=await atendimentoApi.criarOrcamento({clienteId:a.clienteId,obra:a.obra,entrega:a.entrega,inicio:a.inicio,fim:a.fim,forma:a.forma,frete:a.frete||0,desconto:0,
+          itens:Object.entries(a.carrinho).filter(([,q])=>q>0).map(([produtoId,quantidade])=>({produtoId,quantidade})),
+          servicos:(a.servicosDetalhes||[]).filter(s=>s.id!=null).map(s=>({id:s.id,quantidade:1}))});
+        setDb((d)=>({...d,pedidos:[pedido,...d.pedidos.filter(p=>p.num!==pedido.num)]}));
+        return pedido;
+      }
       const num = "PED-" + Date.now().toString().slice(-9);
       const pedido: Pedido = {
         num, clienteId: a.clienteId, obra: a.obra, entrega: a.entrega, inicio: a.inicio, fim: a.fim,
@@ -110,6 +122,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     aprovarPedido: async (numPed) => {
       const p = db.pedidos.find((x) => x.num === numPed);
+      if(p?.versaoId){
+        const contrato=await atendimentoApi.aprovarVersaoOrcamento(numPed,p.versaoId);
+        const pedidoAprovado={...p,status:"Aprovado",contrato:contrato.numero};
+        setDb((d)=>({...d,contratos:d.contratos.some(c=>c.numero===contrato.numero)?d.contratos:[contrato,...d.contratos],pedidos:d.pedidos.map(x=>x.num===numPed?pedidoAprovado:x)}));
+        return contrato;
+      }
       if (!p || ["Orçamento enviado", "Aguardando aprovação"].indexOf(p.status) < 0) return undefined;
       const num = "CT-2026-" + Date.now().toString().slice(-7);
       const dd = diasEntre(p.inicio, p.fim);
@@ -167,7 +185,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
 
     reset: () => setDb({ clientes: structuredClone(CLIENTES), pedidos: structuredClone(PEDIDOS), contratos: structuredClone(CONTRATOS) }),
-  }), [db]);
+  }), [db,produtos]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

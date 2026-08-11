@@ -62,7 +62,7 @@ A especificação completa está em [`docs/LOCAGO_CORE.md`](docs/LOCAGO_CORE.md)
 
 ## Banco e migrations
 
-As migrations ficam em `backend/src/main/resources/db/migration` e são aplicadas automaticamente pelo Flyway. A sequência atual vai de **V1 a V19**, incluindo a normalização de itens e movimentos, separação entre saída e entrega e comprovante por operação de entrega.
+As migrations ficam em `backend/src/main/resources/db/migration` e são aplicadas automaticamente pelo Flyway. A sequência atual vai de **V1 a V21**. V20/V21 normalizam orçamento, versões, itens, serviços e a rastreabilidade até pedido e contrato.
 
 Não edite migration já publicada. Toda evolução compatível deve entrar em uma nova versão.
 
@@ -99,4 +99,4 @@ Além dos testes automatizados, mudanças de domínio devem ser validadas em ban
 
 **LOCAGO Core Foundation V1 — CLOSED.**
 
-O próximo marco arquitetural normalizará `ORÇAMENTO → VERSÃO → ORÇAMENTO_ITEM → PEDIDO_ITEM → CONTRATO_ITEM`, preservando a experiência simples da interface.
+**Marco 2 — Normalização Comercial:** orçamento e suas versões são persistidos; versões enviadas são imutáveis; a aprovação usa o identificador explícito da versão e materializa, em uma única transação, pedido, contrato, itens, serviços, reservas e cobrança.
