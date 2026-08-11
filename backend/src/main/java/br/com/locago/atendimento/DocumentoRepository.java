@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,9 +63,23 @@ public class DocumentoRepository {
   public List<Map<String, Object>> contratos() { return listar("contrato_atendimento", "criado_em"); }
 
   @Transactional
-  public Map<String, Object> salvarCliente(Map<String, Object> documento) {
+  public Map<String, Object> criarCliente(Map<String, Object> documento) {
+    long sequencia = jdbc.sql("select nextval('cliente_atendimento_codigo_seq')").query(Long.class).single();
+    documento.remove("id");
+    documento.put("id", "CL-" + String.format("%06d", sequencia));
+    return salvarCliente(documento);
+  }
+
+  @Transactional
+  public Map<String, Object> atualizarCliente(String id, Map<String, Object> documento) {
+    int existe = jdbc.sql("select count(*) from cliente_atendimento where id=:id").param("id", id).query(Integer.class).single();
+    if (existe == 0) throw new NoSuchElementException("Cliente não encontrado");
+    documento.put("id", id);
+    return salvarCliente(documento);
+  }
+
+  private Map<String, Object> salvarCliente(Map<String, Object> documento) {
     String id = texto(documento, "id");
-    if (id.isBlank()) throw new IllegalArgumentException("Campo obrigatório ausente: id");
     String tipo = tipoPessoa(documento);
     String nome = primeiro(documento, "nomeRazaoSocial", "nome");
     String cpfCnpj = ClienteValidator.documento(primeiro(documento, "cpfCnpj", "doc"), tipo.equals("PJ"));

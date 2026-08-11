@@ -59,10 +59,13 @@ public class ProdutoCatalogoService {
       select pa.codigo,pa.produto_id,pa.serie,pa.estado,pa.localizacao,p.nome
       from patrimonio_atendimento pa join produto_catalogo p on p.id=pa.produto_id
       order by p.nome,pa.codigo
-      """).query((rs, row) -> Map.<String, Object>of(
-        "codigo", rs.getString("codigo"), "produtoId", rs.getString("produto_id"),
-        "produto", rs.getString("nome"), "serie", rs.getString("serie"),
-        "estado", rs.getString("estado"), "local", rs.getString("localizacao"))).list();
+      """).query((rs, row) -> {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("codigo", rs.getString("codigo")); item.put("produtoId", rs.getString("produto_id"));
+        item.put("produto", rs.getString("nome")); item.put("serie", rs.getString("serie"));
+        item.put("estado", rs.getString("estado")); item.put("local", rs.getString("localizacao"));
+        return item;
+      }).list();
   }
 
   public Map<String, Object> categoria(Map<String, Object> corpo) {
@@ -101,8 +104,12 @@ public class ProdutoCatalogoService {
     if (List.of(diaria, semanal, quinzenal, mensal).stream().anyMatch(valor -> valor.signum() < 0))
       throw new IllegalArgumentException("Valores não podem ser negativos");
 
-    String solicitado = texto(produto, "id").toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9_-]", "");
-    String id = solicitado.length() >= 2 && !existeOutro(solicitado, nome) ? solicitado : proximoCodigo(categoria.get("prefixo").toString());
+    String prefixo = categoria.get("prefixo").toString();
+    jdbc.sql("select 1 from (select pg_advisory_xact_lock(hashtext(:chave))) bloqueio")
+        .param("chave", "produto:" + prefixo)
+        .query(Integer.class)
+        .single();
+    String id = proximoCodigo(prefixo);
     produto.put("id", id);
     produto.put("codigo", id);
     produto.put("prefixo", categoria.get("prefixo"));
@@ -115,11 +122,6 @@ public class ProdutoCatalogoService {
           valor_diaria,valor_semanal,valor_quinzenal,valor_mensal,ativo)
         values(:id,cast(:dados as jsonb),:codigo,:nome,:categoria,:marca,:modelo,:descricao,:unidade,
           :diaria,:semanal,:quinzenal,:mensal,true)
-        on conflict(id) do update set dados=excluded.dados,codigo=excluded.codigo,nome=excluded.nome,
-          categoria_id=excluded.categoria_id,marca=excluded.marca,modelo=excluded.modelo,
-          descricao=excluded.descricao,unidade_locacao=excluded.unidade_locacao,valor_diaria=excluded.valor_diaria,
-          valor_semanal=excluded.valor_semanal,valor_quinzenal=excluded.valor_quinzenal,
-          valor_mensal=excluded.valor_mensal,ativo=true,atualizado_em=now()
         """).param("id", id).param("dados", json.writeValueAsString(produto)).param("codigo", id)
         .param("nome", nome).param("categoria", categoria.get("id")).param("marca", marca).param("modelo", modelo)
         .param("descricao", nulo(texto(produto, "descricao"))).param("unidade", produto.get("unidadeLocacao"))
@@ -128,7 +130,7 @@ public class ProdutoCatalogoService {
       int quantidade = Math.max(1, numero(produto, "unidades").intValue());
       jdbc.sql("insert into produto_atendimento(id,nome,capacidade) values(:id,:nome,:qtd) on conflict(id) do update set nome=excluded.nome,capacidade=greatest(produto_atendimento.capacidade,excluded.capacidade)")
         .param("id", id).param("nome", nome).param("qtd", quantidade).update();
-      criarPatrimonios(id, categoria.get("prefixo").toString(), quantidade, numero(produto, "aquisicao"));
+      criarPatrimonios(id, prefixo, quantidade);
       return buscar(id);
     } catch (IllegalArgumentException e) {
       throw e;
@@ -137,21 +139,16 @@ public class ProdutoCatalogoService {
     }
   }
 
-  private void criarPatrimonios(String produtoId, String prefixo, int desejado, BigDecimal aquisicao) {
+  private void criarPatrimonios(String produtoId, String prefixo, int desejado) {
     int existentes = jdbc.sql("select count(*) from patrimonio_atendimento where produto_id=:id")
       .param("id", produtoId).query(Integer.class).single();
     int sequencia = jdbc.sql("select coalesce(max(nullif(regexp_replace(codigo,'[^0-9]','','g'),'')::int),0) from patrimonio_atendimento where codigo like :prefixo")
       .param("prefixo", prefixo + "-%").query(Integer.class).single();
     for (int i = existentes; i < desejado; i++) {
       String codigo = prefixo + "-" + String.format("%04d", ++sequencia);
-      jdbc.sql("insert into patrimonio_atendimento(codigo,produto_id,serie,valor_aquisicao) values(:codigo,:produto,'A informar',:valor)")
-        .param("codigo", codigo).param("produto", produtoId).param("valor", aquisicao.signum() > 0 ? aquisicao : null).update();
+      jdbc.sql("insert into patrimonio_atendimento(codigo,produto_id,serie,localizacao) values(:codigo,:produto,'A informar',null)")
+        .param("codigo", codigo).param("produto", produtoId).update();
     }
-  }
-
-  private boolean existeOutro(String id, String nome) {
-    return jdbc.sql("select count(*) from produto_catalogo where id=:id and lower(nome)<>lower(:nome)")
-      .param("id", id).param("nome", nome).query(Integer.class).single() > 0;
   }
 
   private String proximoCodigo(String prefixo) {

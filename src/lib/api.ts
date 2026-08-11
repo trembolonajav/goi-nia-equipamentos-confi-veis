@@ -1,7 +1,7 @@
 import type { Cliente, Contrato, Pedido, Produto, Patrimonio } from "../data/mock";
 
 export interface ManutencaoApi { id: number; patrimonio: string; produto: string; contrato: string; motivo: string; status: "ABERTA" | "CONCLUIDA"; criadoEm: string; concluidoEm: string | null; }
-export interface PatrimonioApi{codigo:string;produtoId:string;produto:string;serie:string;estado:string}
+export interface PatrimonioApi{codigo:string;produtoId:string;produto:string;serie:string;estado:string;local?:string|null}
 export interface AgendaApi { id:number; contrato:string; clienteId:string; cliente:string; tipo:"ENTREGA"|"COLETA"; data:string; hora:string; destino:string; endereco:string; status:"PENDENTE"|"CONCLUIDA"; }
 export interface ObraApi { clienteId:string; cliente:string; nome:string; endereco:string; restricao:string; frete:number; situacao:string; }
 export interface CobrancaApi { id:number; contrato:string; clienteId:string; cliente:string; descricao:string; vencimento:string; valor:number; recebido:number; saldo:number; status:"ABERTA"|"PARCIAL"|"PAGA"|"VENCIDA"; }
@@ -36,7 +36,8 @@ async function mensagemErro(response: Response) {
 
 export const atendimentoApi = {
   clientes: () => request<Cliente[]>("/atendimento/clientes"),
-  salvarCliente: (cliente: Cliente) => request<Cliente>("/atendimento/clientes", { method: "POST", body: JSON.stringify(cliente) }),
+  criarCliente: (cliente: Partial<Cliente>) => request<Cliente>("/atendimento/clientes", { method: "POST", body: JSON.stringify(cliente) }),
+  atualizarCliente: (cliente: Cliente) => request<Cliente>(`/atendimento/clientes/${cliente.id}`, { method: "PUT", body: JSON.stringify(cliente) }),
   pedidos: () => request<Pedido[]>("/atendimento/pedidos"),
   criarOrcamento: (dados:Record<string,unknown>) => request<Pedido>("/atendimento/orcamentos", { method:"POST", body:JSON.stringify(dados) }),
   criarVersaoOrcamento: (numero:string,dados:Record<string,unknown>) => request<Pedido>(`/atendimento/orcamentos/${numero}/versoes`, { method:"POST", body:JSON.stringify(dados) }),
@@ -76,7 +77,7 @@ export const atendimentoApi = {
   concluirOcorrencia:(id:number)=>request<EventoOperacionalApi>(`/atendimento/ocorrencias/${id}/concluir`,{method:"POST"}),
   produtos:()=>request<Produto[]>("/atendimento/produtos"),
   produto:(id:string)=>request<Produto>(`/atendimento/produtos/${id}`),
-  salvarProduto:(produto:Produto)=>request<Produto>("/atendimento/produtos",{method:"POST",body:JSON.stringify(produto)}),
+  salvarProduto:(produto:Partial<Produto>)=>request<Produto>("/atendimento/produtos",{method:"POST",body:JSON.stringify(produto)}),
   categoriasProduto:()=>request<CategoriaProdutoApi[]>("/atendimento/produtos/categorias/lista"),
   salvarCategoriaProduto:(categoria:{nome:string;prefixo:string})=>request<CategoriaProdutoApi>("/atendimento/produtos/categorias",{method:"POST",body:JSON.stringify(categoria)}),
   patrimoniosProduto:(id:string)=>request<Patrimonio[]>(`/atendimento/produtos/${id}/patrimonios`),

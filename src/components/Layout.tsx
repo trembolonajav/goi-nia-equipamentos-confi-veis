@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useStore } from "../data/store";
 import { useAuth } from "../auth/AuthContext";
 import { monograma } from "../lib/images";
-import { PRODUTOS, PATRIMONIOS, COMPOSICOES, type Produto } from "../data/mock";
+import { type Produto } from "../data/mock";
 import { atendimentoApi, type PatrimonioApi } from "../lib/api";
 
 interface Item { to: string; label: string; badge?: string; }
@@ -28,19 +28,19 @@ export default function Layout() {
   const [grupoAberto, setGrupoAberto] = useState<string | null>(null);
   const [produtosApi, setProdutosApi] = useState<Produto[]>([]);
   const [patrimoniosApi, setPatrimoniosApi] = useState<PatrimonioApi[]>([]);
-  const [composicoesQtd, setComposicoesQtd] = useState(COMPOSICOES.length);
+  const [composicoesQtd, setComposicoesQtd] = useState(0);
 
   useEffect(() => {
     void Promise.all([atendimentoApi.produtos(), atendimentoApi.patrimonios(), atendimentoApi.composicoes()])
       .then(([produtos, patrimonios, composicoes]) => {
         setProdutosApi(produtos);
         setPatrimoniosApi(patrimonios);
-        setComposicoesQtd(composicoes.length + COMPOSICOES.filter((m) => !composicoes.some((c) => c.id === m.id)).length);
+        setComposicoesQtd(composicoes.length);
       });
   }, [location.pathname]);
 
-  const produtosQtd = PRODUTOS.length + produtosApi.filter((p) => !PRODUTOS.some((m) => m.id === p.id)).length;
-  const patrimoniosQtd = patrimoniosApi.length || PATRIMONIOS.length;
+  const produtosQtd = produtosApi.length;
+  const patrimoniosQtd = patrimoniosApi.length;
 
   const abertos = pedidos.filter((p) => ["Rascunho", "Orçamento enviado", "Aguardando aprovação"].indexOf(p.status) >= 0).length;
   const expedic = contratos.filter((c) => c.itens.some((i) => ["Reservado", "Em separação"].indexOf(i.estado) >= 0)).length;
@@ -93,10 +93,9 @@ export default function Layout() {
     const out: { grupo: string; titulo: string; sub: string; to: string }[] = [];
     for (const c of clientes) if ((c.nome + c.doc + c.tel).toLowerCase().includes(q)) out.push({ grupo: "Cliente", titulo: c.nome, sub: c.doc + " · " + c.situacao, to: `/app/clientes/${c.id}` });
     for (const c of contratos) if ((c.numero + c.local).toLowerCase().includes(q)) out.push({ grupo: "Contrato", titulo: c.numero, sub: c.local + " · " + c.situacao, to: `/app/contratos/${c.numero}` });
-    const patsBusca = patrimoniosApi.length ? patrimoniosApi.map((p) => ({ cod: p.codigo, serie: p.serie || "", local: "Galpão", estado: p.estado, prod: p.produtoId })) : PATRIMONIOS;
-    for (const p of patsBusca) if ((p.cod + p.serie + p.local).toLowerCase().includes(q)) out.push({ grupo: "Patrimônio", titulo: p.cod, sub: p.estado + " · " + p.local, to: `/app/produtos/${p.prod}` });
-    const produtosBusca = [...produtosApi, ...PRODUTOS.filter((m) => !produtosApi.some((p) => p.id === m.id))];
-    for (const p of produtosBusca) if (p.nome.toLowerCase().includes(q)) out.push({ grupo: "Equipamento", titulo: p.nome, sub: p.categoria, to: `/app/produtos/${p.id}` });
+    const patsBusca = patrimoniosApi.map((p) => ({ cod: p.codigo, serie: p.serie || "", local: p.local || "", estado: p.estado, prod: p.produtoId }));
+    for (const p of patsBusca) if ((p.cod + p.serie + p.local).toLowerCase().includes(q)) out.push({ grupo: "Patrimônio", titulo: p.cod, sub: p.estado + " · " + (p.local || "Local não informado"), to: `/app/produtos/${p.prod}` });
+    for (const p of produtosApi) if (p.nome.toLowerCase().includes(q)) out.push({ grupo: "Equipamento", titulo: p.nome, sub: p.categoria, to: `/app/produtos/${p.id}` });
     return out.slice(0, 8);
   }, [busca, clientes, contratos, patrimoniosApi, produtosApi]);
 

@@ -30,12 +30,12 @@ export default function ClienteForm() {
     if (!(pj ? cnpjValido(doc) : cpfValido(doc))) return setErro(`${pj ? "CNPJ" : "CPF"} inválido. Confira os números informados.`);
     if (!tel.trim()) return setErro("Informe o telefone com DDD.");
     if (![10, 11].includes(tel.replace(/\D/g, "").length)) return setErro("Informe um telefone válido com DDD.");
-    if (!/^\S+@\S+\.\S+$/.test(email)) return setErro("Informe um e-mail válido.");
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email)) return setErro("Informe um e-mail válido.");
     if(cep.replace(/\D/g,"").length!==8)return setErro("Informe um CEP válido.");
     if(logradouro.trim().length<3||!numeroEndereco.trim()||bairro.trim().length<2||cidade.trim().length<2||uf.trim().length!==2)return setErro("Preencha logradouro, número, bairro, cidade e UF.");
     const endereco=formatarEndereco({logradouro,numeroEndereco,complemento,bairro,cidade,uf,cep,quadra,lote});
     const limpo = pj ? doc.toUpperCase().replace(/[^A-Z0-9]/g,"") : doc.replace(/\D/g, "");
-    if (limpo && clientes.some((c) => c.doc.replace(/\D/g, "") === limpo && limpo.length > 4)) return setErro("Já existe um cliente com esse documento. Documento duplicado é bloqueado.");
+    if (limpo && clientes.some((c) => normalizarDocumento(c.cpfCnpj || c.doc, pj) === limpo && limpo.length > 4)) return setErro("Já existe um cliente com esse documento. Documento duplicado é bloqueado.");
     try {
       const c = await addCliente({
         tipo, tipoPessoa:pj?"PJ":"PF", nome: nome.trim(), nomeRazaoSocial:nome.trim(), cpfCnpj:limpo, doc: (pj ? "CNPJ " : "CPF ") + doc.trim(), tel: tel.trim(), telefone:tel.trim(), whatsapp:tel.trim(), email: email.trim(),
@@ -63,7 +63,7 @@ export default function ClienteForm() {
           </div>
           <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", marginTop: 16 }}>
             <label className="field"><span>{pj ? "Razão social" : "Nome completo"}</span><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} /></label>
-            <label className="field"><span>{pj ? "CNPJ" : "CPF"}</span><input className="input" inputMode="numeric" maxLength={pj ? 18 : 14} value={doc} onChange={(e) => setDoc(formatarDocumento(e.target.value, pj))} placeholder={pj ? "00.000.000/0000-00" : "000.000.000-00"} /></label>
+            <label className="field"><span>{pj ? "CNPJ" : "CPF"}</span><input className="input" inputMode={pj ? "text" : "numeric"} autoCapitalize={pj ? "characters" : "none"} maxLength={14} value={doc} onChange={(e) => setDoc(formatarDocumento(e.target.value, pj))} placeholder={pj ? "12 caracteres + 2 dígitos" : "000.000.000-00"} /></label>
           </div>
         </section>
 
@@ -127,6 +127,7 @@ export default function ClienteForm() {
 }
 
 function formatarDocumento(valor:string,pj:boolean){if(pj)return valor.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,14);const n=valor.replace(/\D/g,"").slice(0,11);return n.replace(/^(\d{3})(\d)/,"$1.$2").replace(/^(\d{3})\.(\d{3})(\d)/,"$1.$2.$3").replace(/(\d{3})(\d{1,2})$/,"$1-$2")}
+function normalizarDocumento(valor:string|undefined,pj:boolean){const semRotulo=(valor||"").toUpperCase().replace(/^(CPF|CNPJ)\s*/,"");return pj?semRotulo.replace(/[^A-Z0-9]/g,""):semRotulo.replace(/\D/g,"")}
 function formatarTelefone(valor:string){const n=valor.replace(/\D/g,"").slice(0,11);return n.replace(/^(\d{2})(\d)/,"($1) $2").replace(/(\d{5})(\d{4})$/,"$1-$2").replace(/(\d{4})(\d{4})$/,"$1-$2")}
 function formatarCep(valor:string){return valor.replace(/\D/g,"").slice(0,8).replace(/(\d{5})(\d)/,"$1-$2")}
 function formatarEndereco(e:{logradouro:string;numeroEndereco:string;complemento:string;bairro:string;cidade:string;uf:string;cep:string;quadra:string;lote:string}){return [e.logradouro.trim()+", "+e.numeroEndereco.trim(),e.complemento.trim(),[e.quadra.trim(),e.lote.trim()].filter(Boolean).join(" "),e.bairro.trim(),`${e.cidade.trim()}/${e.uf.trim().toUpperCase()}`,`CEP ${e.cep}`].filter(Boolean).join(" · ")}

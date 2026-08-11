@@ -23,7 +23,7 @@ public class ClienteValidator {
     if (nome.length() < 3) erro("Nome/razão social inválido");
     if (pj ? !cnpj(documento) : !cpf(documento)) erro(pj ? "CNPJ inválido" : "CPF inválido");
     if (telefone.length() != 10 && telefone.length() != 11) erro("Telefone deve conter DDD e 10 ou 11 dígitos");
-    if (!EMAIL.matcher(email).matches()) erro("E-mail inválido");
+    if (!email.isBlank() && !EMAIL.matcher(email).matches()) erro("E-mail inválido");
 
     boolean estruturado = cliente.containsKey("logradouro") || cliente.containsKey("cep");
     if (estruturado) {

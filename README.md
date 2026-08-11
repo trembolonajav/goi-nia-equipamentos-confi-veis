@@ -62,7 +62,7 @@ A especificação completa está em [`docs/LOCAGO_CORE.md`](docs/LOCAGO_CORE.md)
 
 ## Banco e migrations
 
-As migrations ficam em `backend/src/main/resources/db/migration` e são aplicadas automaticamente pelo Flyway. A sequência atual vai de **V1 a V22**. V20/V21 normalizam orçamento, versões, itens, serviços e a rastreabilidade até pedido e contrato. V22 separa os componentes financeiros e reforça no banco a imutabilidade das versões comerciais enviadas.
+As migrations ficam em `backend/src/main/resources/db/migration` e são aplicadas automaticamente pelo Flyway. A sequência atual vai de **V1 a V24**. V20/V21 normalizam orçamento, versões, itens, serviços e a rastreabilidade até pedido e contrato. V22 reforça a imutabilidade comercial; V23 normaliza clientes, produtos e patrimônios; V24 entrega o endurecimento final dos identificadores e das localizações cadastrais.
 
 Não edite migration já publicada. Toda evolução compatível deve entrar em uma nova versão.
 
