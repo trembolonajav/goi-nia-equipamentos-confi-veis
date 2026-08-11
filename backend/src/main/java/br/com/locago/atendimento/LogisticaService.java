@@ -11,7 +11,7 @@ public class LogisticaService {
   private final JdbcClient jdbc;
   public LogisticaService(JdbcClient jdbc){this.jdbc=jdbc;}
   public List<Map<String,Object>> agenda(){return jdbc.sql("""
-    select t.id,t.contrato_numero,t.cliente_id,coalesce(c.dados->>'nome',t.cliente_id) cliente,t.tipo,t.data_prevista,t.hora_prevista,t.destino,t.endereco,t.status,t.concluido_em
+    select t.id,t.contrato_numero,t.cliente_id,coalesce(c.nome_razao_social,c.dados->>'nome',t.cliente_id) cliente,t.tipo,t.data_prevista,t.hora_prevista,t.destino,t.endereco,t.status,t.concluido_em
     from tarefa_logistica t left join cliente_atendimento c on c.id=t.cliente_id
     order by case when t.status='PENDENTE' then 0 else 1 end,t.data_prevista,t.hora_prevista
     """).query((rs,n)->{Map<String,Object>m=new LinkedHashMap<>();m.put("id",rs.getLong("id"));m.put("contrato",rs.getString("contrato_numero"));m.put("clienteId",rs.getString("cliente_id"));m.put("cliente",rs.getString("cliente"));m.put("tipo",rs.getString("tipo"));m.put("data",rs.getDate("data_prevista").toLocalDate().toString());m.put("hora",rs.getTime("hora_prevista").toLocalTime().toString());m.put("destino",rs.getString("destino"));m.put("endereco",rs.getString("endereco"));m.put("status",rs.getString("status"));return m;}).list();}

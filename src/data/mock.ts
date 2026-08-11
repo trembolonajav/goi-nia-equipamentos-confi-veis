@@ -6,7 +6,7 @@ export interface Produto {
   diaria: number; semanal: number; quinzenal: number; mensal: number; caucao: number; reposicao: number;
   minimo: string; preparo: string; inspecao: string; multa: string; limpeza: string;
   receita: number; custoManut: number; diasLocada: number; diasParada: number; aquisicao: number; unidades?: number;
-  marca?: string; modelo?: string; prefixo?: string;
+  marca?: string; modelo?: string; prefixo?: string; descricao?: string; unidadeLocacao?: string;
 }
 
 export const PRODUTOS: Produto[] = [
@@ -65,6 +65,8 @@ export interface Cliente {
   condicao: string; inscricao: string; resp: string; endereco: string; aviso: string; obs: string;
   obras: Obra[]; docs: { nome: string; ok: boolean }[];
   cep?:string; logradouro?:string; numeroEndereco?:string; complemento?:string; bairro?:string; cidade?:string; uf?:string; quadra?:string; lote?:string;
+  tipoPessoa?:"PF"|"PJ"; nomeRazaoSocial?:string; nomeFantasia?:string; cpfCnpj?:string; rgIe?:string;
+  inscricaoMunicipal?:string; telefone?:string; whatsapp?:string; codigoIbge?:string;
 }
 
 export const CLIENTES: Cliente[] = [

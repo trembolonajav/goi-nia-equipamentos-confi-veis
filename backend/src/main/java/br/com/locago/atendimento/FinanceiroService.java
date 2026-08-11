@@ -17,7 +17,7 @@ public class FinanceiroService {
   public FinanceiroService(JdbcClient jdbc){this.jdbc=jdbc;}
 
   public List<Map<String,Object>> cobrancas(){
-    String sql="select cb.id,cb.contrato_numero,cb.cliente_id,coalesce(cl.dados->>'nome',cb.cliente_id) cliente,cb.descricao,cb.vencimento,cb.valor,cb.recebido,(cb.valor-cb.recebido) saldo,case when cb.status<>'PAGA' and cb.vencimento<current_date then 'VENCIDA' else cb.status end status from cobranca_atendimento cb left join cliente_atendimento cl on cl.id=cb.cliente_id order by case when cb.status='PAGA' then 1 else 0 end,cb.vencimento";
+    String sql="select cb.id,cb.contrato_numero,cb.cliente_id,coalesce(cl.nome_razao_social,cl.dados->>'nome',cb.cliente_id) cliente,cb.descricao,cb.vencimento,cb.valor,cb.recebido,(cb.valor-cb.recebido) saldo,case when cb.status<>'PAGA' and cb.vencimento<current_date then 'VENCIDA' else cb.status end status from cobranca_atendimento cb left join cliente_atendimento cl on cl.id=cb.cliente_id order by case when cb.status='PAGA' then 1 else 0 end,cb.vencimento";
     return jdbc.sql(sql).query((r,n)->{Map<String,Object>m=new LinkedHashMap<>();m.put("id",r.getLong("id"));m.put("contrato",r.getString("contrato_numero"));m.put("clienteId",r.getString("cliente_id"));m.put("cliente",r.getString("cliente"));m.put("descricao",r.getString("descricao"));m.put("vencimento",r.getDate("vencimento").toLocalDate().toString());m.put("valor",r.getBigDecimal("valor"));m.put("recebido",r.getBigDecimal("recebido"));m.put("saldo",r.getBigDecimal("saldo"));m.put("status",r.getString("status"));return m;}).list();
   }
   public List<Map<String,Object>> contas(){

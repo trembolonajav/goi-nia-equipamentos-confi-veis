@@ -34,11 +34,11 @@ export default function ClienteForm() {
     if(cep.replace(/\D/g,"").length!==8)return setErro("Informe um CEP válido.");
     if(logradouro.trim().length<3||!numeroEndereco.trim()||bairro.trim().length<2||cidade.trim().length<2||uf.trim().length!==2)return setErro("Preencha logradouro, número, bairro, cidade e UF.");
     const endereco=formatarEndereco({logradouro,numeroEndereco,complemento,bairro,cidade,uf,cep,quadra,lote});
-    const limpo = doc.replace(/\D/g, "");
+    const limpo = pj ? doc.toUpperCase().replace(/[^A-Z0-9]/g,"") : doc.replace(/\D/g, "");
     if (limpo && clientes.some((c) => c.doc.replace(/\D/g, "") === limpo && limpo.length > 4)) return setErro("Já existe um cliente com esse documento. Documento duplicado é bloqueado.");
     try {
       const c = await addCliente({
-        tipo, nome: nome.trim(), doc: (pj ? "CNPJ " : "CPF ") + doc.trim(), tel: tel.trim(), email: email.trim(),
+        tipo, tipoPessoa:pj?"PJ":"PF", nome: nome.trim(), nomeRazaoSocial:nome.trim(), cpfCnpj:limpo, doc: (pj ? "CNPJ " : "CPF ") + doc.trim(), tel: tel.trim(), telefone:tel.trim(), whatsapp:tel.trim(), email: email.trim(),
         situacao: "Ativo", condicao, endereco,cep,logradouro,numeroEndereco,complemento,bairro,cidade,uf:uf.toUpperCase(),quadra,lote, obs: obs.trim(), resp: "O próprio",
         docs: anexos.map((a) => ({ nome: a.tipo, ok: true })),
       });
@@ -126,9 +126,9 @@ export default function ClienteForm() {
   );
 }
 
-function formatarDocumento(valor:string,pj:boolean){const n=valor.replace(/\D/g,"").slice(0,pj?14:11);if(pj)return n.replace(/^(\d{2})(\d)/,"$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/,"$1.$2.$3").replace(/\.(\d{3})(\d)/,".$1/$2").replace(/(\d{4})(\d)/,"$1-$2");return n.replace(/^(\d{3})(\d)/,"$1.$2").replace(/^(\d{3})\.(\d{3})(\d)/,"$1.$2.$3").replace(/(\d{3})(\d{1,2})$/,"$1-$2")}
+function formatarDocumento(valor:string,pj:boolean){if(pj)return valor.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,14);const n=valor.replace(/\D/g,"").slice(0,11);return n.replace(/^(\d{3})(\d)/,"$1.$2").replace(/^(\d{3})\.(\d{3})(\d)/,"$1.$2.$3").replace(/(\d{3})(\d{1,2})$/,"$1-$2")}
 function formatarTelefone(valor:string){const n=valor.replace(/\D/g,"").slice(0,11);return n.replace(/^(\d{2})(\d)/,"($1) $2").replace(/(\d{5})(\d{4})$/,"$1-$2").replace(/(\d{4})(\d{4})$/,"$1-$2")}
 function formatarCep(valor:string){return valor.replace(/\D/g,"").slice(0,8).replace(/(\d{5})(\d)/,"$1-$2")}
 function formatarEndereco(e:{logradouro:string;numeroEndereco:string;complemento:string;bairro:string;cidade:string;uf:string;cep:string;quadra:string;lote:string}){return [e.logradouro.trim()+", "+e.numeroEndereco.trim(),e.complemento.trim(),[e.quadra.trim(),e.lote.trim()].filter(Boolean).join(" "),e.bairro.trim(),`${e.cidade.trim()}/${e.uf.trim().toUpperCase()}`,`CEP ${e.cep}`].filter(Boolean).join(" · ")}
 function cpfValido(valor:string){const n=valor.replace(/\D/g,"");if(n.length!==11||/^(\d)\1+$/.test(n))return false;const dv=(len:number,peso:number)=>{let soma=0;for(let i=0;i<len;i++)soma+=Number(n[i])*(peso-i);const resto=11-soma%11;return resto>=10?0:resto};return dv(9,10)===Number(n[9])&&dv(10,11)===Number(n[10])}
-function cnpjValido(valor:string){const n=valor.replace(/\D/g,"");if(n.length!==14||/^(\d)\1+$/.test(n))return false;const dv=(pesos:number[])=>{const soma=pesos.reduce((total,peso,i)=>total+Number(n[i])*peso,0);const resto=soma%11;return resto<2?0:11-resto};return dv([5,4,3,2,9,8,7,6,5,4,3,2])===Number(n[12])&&dv([6,5,4,3,2,9,8,7,6,5,4,3,2])===Number(n[13])}
+function cnpjValido(valor:string){const n=valor.toUpperCase().replace(/[^A-Z0-9]/g,"");if(n.length!==14||!/^[A-Z0-9]{12}\d{2}$/.test(n)||/^(.)\1+$/.test(n))return false;const valorCaractere=(c:string)=>c.charCodeAt(0)-48;const dv=(base:string,pesos:number[])=>{const soma=pesos.reduce((total,peso,i)=>total+valorCaractere(base[i])*peso,0);const resto=soma%11;return resto<2?0:11-resto};const d1=dv(n.slice(0,12),[5,4,3,2,9,8,7,6,5,4,3,2]);const d2=dv(n.slice(0,12)+d1,[6,5,4,3,2,9,8,7,6,5,4,3,2]);return d1===Number(n[12])&&d2===Number(n[13])}

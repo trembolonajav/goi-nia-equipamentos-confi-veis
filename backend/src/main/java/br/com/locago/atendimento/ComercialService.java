@@ -26,9 +26,7 @@ public class ComercialService {
     String clienteId=texto(body,"clienteId");
     LocalDate inicio=data(body,"inicio"), fim=data(body,"fim");
     if(fim.isBefore(inicio)) throw erro(HttpStatus.BAD_REQUEST,"O término não pode ser anterior ao início");
-    Map<String,Object> cliente=jdbc.sql("select dados::text from cliente_atendimento where id=:id")
-      .param("id",clienteId).query(String.class).optional().map(this::ler)
-      .orElseThrow(()->erro(HttpStatus.BAD_REQUEST,"Cliente não encontrado"));
+    Map<String,Object> cliente=clienteAtual(clienteId);
     String numero="ORC-"+UUID.randomUUID().toString().substring(0,8).toUpperCase(Locale.ROOT);
     Long orcamentoId=jdbc.sql("insert into orcamento(numero,cliente_id) values(:n,:c) returning id")
       .param("n",numero).param("c",clienteId).query(Long.class).single();
@@ -42,8 +40,7 @@ public class ComercialService {
     Map<String,Object> orcamento=orcamento(numero,true);
     if("APROVADO".equals(orcamento.get("status"))) throw erro(HttpStatus.CONFLICT,"Orçamento aprovado não pode ser alterado");
     long id=longNumero(orcamento.get("id")); int versao=numero(orcamento.get("versao_atual"))+1;
-    Map<String,Object> cliente=jdbc.sql("select dados::text from cliente_atendimento where id=:id")
-      .param("id",orcamento.get("cliente_id")).query(String.class).optional().map(this::ler).orElseThrow();
+    Map<String,Object> cliente=clienteAtual(String.valueOf(orcamento.get("cliente_id")));
     LocalDate inicio=data(body,"inicio"),fim=data(body,"fim");
     if(fim.isBefore(inicio)) throw erro(HttpStatus.BAD_REQUEST,"O término não pode ser anterior ao início");
     Long versaoId=criarVersao(id,versao,cliente,body,inicio,fim);
@@ -157,7 +154,7 @@ public class ComercialService {
     int dias=Math.max(1,(int)ChronoUnit.DAYS.between(inicio,fim)); BigDecimal locacao=BigDecimal.ZERO;
     for(Map<String,Object> req:itensSolicitados){
       String produto=texto(req,"produtoId"); int qtd=Math.max(1,numero(req.getOrDefault("quantidade",1)));
-      Map<String,Object> dados=jdbc.sql("select dados::text from produto_catalogo where id=:id and ativo for update").param("id",produto).query(String.class).optional().map(this::ler).orElseThrow(()->erro(HttpStatus.BAD_REQUEST,"Produto não encontrado: "+produto));
+      Map<String,Object> dados=produtoAtual(produto);
       Preco preco=melhorPreco(dados,dias); BigDecimal total=preco.valor.multiply(BigDecimal.valueOf(qtd));locacao=locacao.add(total);
       jdbc.sql("insert into orcamento_item(versao_id,produto_id,descricao_snapshot,categoria_snapshot,marca_snapshot,modelo_snapshot,quantidade,tipo_preco,valor_unitario,valor_total,dados_snapshot) values(:v,:p,:n,:c,:ma,:mo,:q,:tp,:u,:t,cast(:s as jsonb))")
         .param("v",id).param("p",produto).param("n",dados.get("nome")).param("c",dados.get("categoria")).param("ma",dados.get("marca")).param("mo",dados.get("modelo")).param("q",qtd).param("tp",preco.tipo).param("u",preco.valor).param("t",total).param("s",escrever(dados)).update();
@@ -227,6 +224,37 @@ public class ComercialService {
   private Map<String,Object> obraSnapshot(Map<String,Object> cliente,String nome){for(Map<String,Object> o:lista(cliente.get("obras")))if(nome.equals(String.valueOf(o.get("nome"))))return new LinkedHashMap<>(o);return nome.isBlank()?Map.of():Map.of("nome",nome);}
   @SuppressWarnings("unchecked") private String obraNome(Object valor){if(valor instanceof Map<?,?>m)return String.valueOf(m.get("nome")==null?"":m.get("nome"));try{return String.valueOf(ler(String.valueOf(valor)).getOrDefault("nome",""));}catch(Exception e){return "";}}
   @SuppressWarnings("unchecked") private String obraEndereco(Object valor){if(valor instanceof Map<?,?>m)return String.valueOf(m.get("endereco")==null?"Balcão · LOCAGO":m.get("endereco"));try{return String.valueOf(ler(String.valueOf(valor)).getOrDefault("endereco","Balcão · LOCAGO"));}catch(Exception e){return "Balcão · LOCAGO";}}
+  private Map<String,Object> clienteAtual(String id){
+    String sql="""
+      select (dados || jsonb_build_object(
+        'id',id,'tipoPessoa',tipo_pessoa,
+        'tipo',case when tipo_pessoa='PJ' then 'Pessoa jurídica' else 'Pessoa física' end,
+        'nome',nome_razao_social,'nomeRazaoSocial',nome_razao_social,'nomeFantasia',nome_fantasia,
+        'cpfCnpj',cpf_cnpj,'doc',(case when tipo_pessoa='PJ' then 'CNPJ ' else 'CPF ' end)||cpf_cnpj,
+        'rgIe',rg_ie,'inscricaoMunicipal',inscricao_municipal,'tel',telefone,'telefone',telefone,
+        'whatsapp',whatsapp,'email',email,'cep',cep,'logradouro',logradouro,'numeroEndereco',numero_endereco,
+        'complemento',complemento,'bairro',bairro,'cidade',cidade,'uf',uf,'codigoIbge',codigo_ibge,
+        'quadra',quadra,'lote',lote,'obs',observacao,
+        'situacao',case when ativo then 'Ativo' else 'Inativo' end
+      ))::text
+      from cliente_atendimento where id=:id and ativo
+      """;
+    return jdbc.sql(sql).param("id",id).query(String.class).optional().map(this::ler)
+      .orElseThrow(()->erro(HttpStatus.BAD_REQUEST,"Cliente não encontrado ou inativo"));
+  }
+  private Map<String,Object> produtoAtual(String id){
+    String sql="""
+      select (p.dados || jsonb_build_object(
+        'id',p.id,'codigo',p.codigo,'nome',p.nome,'categoria',c.nome,'prefixo',c.prefixo,
+        'marca',p.marca,'modelo',p.modelo,'descricao',p.descricao,'unidadeLocacao',p.unidade_locacao,
+        'diaria',p.valor_diaria,'semanal',p.valor_semanal,'quinzenal',p.valor_quinzenal,'mensal',p.valor_mensal
+      ))::text
+      from produto_catalogo p join categoria_produto c on c.id=p.categoria_id
+      where p.id=:id and p.ativo for update of p
+      """;
+    return jdbc.sql(sql).param("id",id).query(String.class).optional().map(this::ler)
+      .orElseThrow(()->erro(HttpStatus.BAD_REQUEST,"Produto não encontrado ou inativo: "+id));
+  }
   private Map<String,Object> primeiraLinha(List<Map<String,Object>> linhas,String mensagem){if(linhas.isEmpty())throw erro(HttpStatus.NOT_FOUND,mensagem);return new LinkedHashMap<>(linhas.get(0));}
   private LocalDate localDate(Object valor){if(valor instanceof LocalDate d)return d;if(valor instanceof java.sql.Date d)return d.toLocalDate();return LocalDate.parse(String.valueOf(valor));}
   private String statusTela(String s){return switch(s){case"APROVADO"->"Aprovado";case"ENVIADO"->"Orçamento enviado";case"RASCUNHO"->"Rascunho";case"CANCELADO"->"Cancelado";default->s;};}
