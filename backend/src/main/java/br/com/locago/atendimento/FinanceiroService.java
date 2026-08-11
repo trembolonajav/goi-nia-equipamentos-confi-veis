@@ -20,10 +20,6 @@ public class FinanceiroService {
     String sql="select cb.id,cb.contrato_numero,cb.cliente_id,coalesce(cl.dados->>'nome',cb.cliente_id) cliente,cb.descricao,cb.vencimento,cb.valor,cb.recebido,(cb.valor-cb.recebido) saldo,case when cb.status<>'PAGA' and cb.vencimento<current_date then 'VENCIDA' else cb.status end status from cobranca_atendimento cb left join cliente_atendimento cl on cl.id=cb.cliente_id order by case when cb.status='PAGA' then 1 else 0 end,cb.vencimento";
     return jdbc.sql(sql).query((r,n)->{Map<String,Object>m=new LinkedHashMap<>();m.put("id",r.getLong("id"));m.put("contrato",r.getString("contrato_numero"));m.put("clienteId",r.getString("cliente_id"));m.put("cliente",r.getString("cliente"));m.put("descricao",r.getString("descricao"));m.put("vencimento",r.getDate("vencimento").toLocalDate().toString());m.put("valor",r.getBigDecimal("valor"));m.put("recebido",r.getBigDecimal("recebido"));m.put("saldo",r.getBigDecimal("saldo"));m.put("status",r.getString("status"));return m;}).list();
   }
-  public List<Map<String,Object>> caucoes(){
-    String sql="select c.id,c.contrato_numero,c.cliente_id,coalesce(cl.dados->>'nome',c.cliente_id) cliente,c.valor,c.status,c.atualizado_em from caucao_atendimento c left join cliente_atendimento cl on cl.id=c.cliente_id order by case c.status when 'RETIDA' then 0 when 'EM_ANALISE' then 1 else 2 end,c.atualizado_em desc";
-    return jdbc.sql(sql).query((r,n)->{Map<String,Object>m=new LinkedHashMap<>();m.put("id",r.getLong("id"));m.put("contrato",r.getString("contrato_numero"));m.put("clienteId",r.getString("cliente_id"));m.put("cliente",r.getString("cliente"));m.put("valor",r.getBigDecimal("valor"));m.put("status",r.getString("status"));m.put("atualizadoEm",r.getTimestamp("atualizado_em").toInstant().toString());return m;}).list();
-  }
   public List<Map<String,Object>> contas(){
     return jdbc.sql("select id,nome,tipo,saldo_inicial,ativo from conta_financeira where ativo order by nome").query((r,n)->Map.<String,Object>of("id",r.getLong("id"),"nome",r.getString("nome"),"tipo",r.getString("tipo"),"saldoInicial",r.getBigDecimal("saldo_inicial"),"ativo",r.getBoolean("ativo"))).list();
   }
@@ -37,7 +33,13 @@ public class FinanceiroService {
     String tipo=String.valueOf(b.getOrDefault("tipo","")).toUpperCase(),descricao=String.valueOf(b.getOrDefault("descricao","")).trim(),categoria=String.valueOf(b.getOrDefault("categoria","Outros")).trim();
     if(!tipo.equals("ENTRADA")&&!tipo.equals("SAIDA"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Tipo inválido");if(descricao.length()<3)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Informe a descrição");
     BigDecimal valor=new BigDecimal(String.valueOf(b.getOrDefault("valor","0")));if(valor.signum()<=0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Informe um valor positivo");
-    long conta=Long.parseLong(String.valueOf(b.getOrDefault("contaId",contas().get(0).get("id"))));String status=String.valueOf(b.getOrDefault("status","ABERTO")).toUpperCase();LocalDate vencimento=LocalDate.parse(String.valueOf(b.getOrDefault("vencimento",LocalDate.now())));LocalDate pagamento="PAGO".equals(status)?LocalDate.parse(String.valueOf(b.getOrDefault("pagamento",LocalDate.now()))):null;
+    Object contaInformada=b.get("contaId");
+    if(contaInformada==null||String.valueOf(contaInformada).isBlank())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Selecione a conta financeira");
+    long conta;
+    try{conta=Long.parseLong(String.valueOf(contaInformada));}catch(NumberFormatException e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Selecione a conta financeira");}
+    int contaAtiva=jdbc.sql("select count(*) from conta_financeira where id=:id and ativo").param("id",conta).query(Integer.class).single();
+    if(contaAtiva!=1)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Selecione uma conta financeira ativa");
+    String status=String.valueOf(b.getOrDefault("status","ABERTO")).toUpperCase();LocalDate vencimento=LocalDate.parse(String.valueOf(b.getOrDefault("vencimento",LocalDate.now())));LocalDate pagamento="PAGO".equals(status)?LocalDate.parse(String.valueOf(b.getOrDefault("pagamento",LocalDate.now()))):null;
     Long id=jdbc.sql("insert into lancamento_financeiro(tipo,descricao,categoria,conta_id,vencimento,pagamento,valor,status,forma,observacao) values(:t,:d,:c,:conta,:v,:p,:valor,:s,:f,:o) returning id").param("t",tipo).param("d",descricao).param("c",categoria).param("conta",conta).param("v",vencimento).param("p",pagamento).param("valor",valor).param("s",status).param("f",String.valueOf(b.getOrDefault("forma","Pix"))).param("o",String.valueOf(b.getOrDefault("observacao",""))).query(Long.class).single();return porId(id);
   }
   @Transactional public Map<String,Object> baixar(long id,Map<String,Object>b){jdbc.sql("update lancamento_financeiro set status='PAGO',pagamento=:p,forma=:f,atualizado_em=now() where id=:id and status='ABERTO'").param("p",LocalDate.parse(String.valueOf(b.getOrDefault("pagamento",LocalDate.now())))).param("f",String.valueOf(b.getOrDefault("forma","Pix"))).param("id",id).update();return porId(id);}

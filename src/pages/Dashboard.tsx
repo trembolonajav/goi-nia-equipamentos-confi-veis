@@ -18,7 +18,7 @@ export default function Dashboard() {
     { valor: atrasadas, rotulo: "Devolução atrasada", cor: "var(--red)", to: "/app/contratos" },
     { valor: 1, rotulo: "Pagamento vencido", cor: "var(--red)", to: "/app/receber" },
     { valor: inspecao, rotulo: "Aguardando inspeção", cor: "var(--blue)", to: "/app/manutencoes" },
-    { valor: semPgto, rotulo: "Reserva sem pagamento", cor: "var(--yellow)", to: "/app/caucoes" },
+    { valor: semPgto, rotulo: "Reserva sem pagamento", cor: "var(--yellow)", to: "/app/receber" },
   ];
 
   const cont = (estado: string) => PATRIMONIOS.filter((p) => p.estado === estado).length;

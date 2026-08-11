@@ -14,8 +14,8 @@ import java.util.Map;
 
 @Service
 public class ManutencaoService {
-  private final JdbcClient jdbc; private final ObjectMapper json;
-  public ManutencaoService(JdbcClient jdbc,ObjectMapper json){this.jdbc=jdbc;this.json=json;}
+  private final JdbcClient jdbc; private final ObjectMapper json; private final OperacaoContratoService operacao;
+  public ManutencaoService(JdbcClient jdbc,ObjectMapper json,OperacaoContratoService operacao){this.jdbc=jdbc;this.json=json;this.operacao=operacao;}
 
   public List<Map<String,Object>> listar(){
     return jdbc.sql("""
@@ -45,8 +45,9 @@ public class ManutencaoService {
     if(!"ABERTA".equals(manutencao.get("status"))) throw new ResponseStatusException(HttpStatus.CONFLICT,"Manutenção já foi concluída");
     String patrimonio=manutencao.get("patrimonio").toString();String contrato=(String)manutencao.get("contrato");
     jdbc.sql("update manutencao_atendimento set status='CONCLUIDA',concluido_em=now(),motivo=case when :o='' then motivo else motivo||E'\\nConclusão: '||:o end where id=:id").param("o",observacao==null?"":observacao).param("id",id).update();
-    jdbc.sql("update patrimonio_atendimento set estado='DISPONIVEL',contrato_numero=null,atualizado_em=now() where codigo=:p and estado='MANUTENCAO'").param("p",patrimonio).update();
-    if(contrato!=null&&!contrato.isBlank()) adicionarEvento(contrato,"Manutenção concluída",patrimonio+" testado e liberado para novas locações");
+    int alterados=jdbc.sql("update patrimonio_atendimento set estado='DISPONIVEL',contrato_numero=null,atualizado_em=now() where codigo=:p and estado='MANUTENCAO'").param("p",patrimonio).update();
+    if(alterados!=1)throw new ResponseStatusException(HttpStatus.CONFLICT,"O patrimônio não está mais em manutenção");
+    if(contrato!=null&&!contrato.isBlank())operacao.concluirManutencaoContrato(contrato,patrimonio,observacao==null?"":observacao);
     return listar().stream().filter(m->m.get("id").equals(id)).findFirst().orElseThrow();
   }
 

@@ -34,7 +34,7 @@ interface StoreApi {
   atualizarCliente: (c: Cliente) => Promise<void>;
   criarPedido: (args: CriarPedidoArgs) => Promise<Pedido>;
   aprovarPedido: (num: string) => Promise<Contrato | undefined>;
-  expedirContrato: (num:string,itemIds:number[]) => Promise<void>;
+  expedirContrato: (num:string,alocacoes:{itemId:number;quantidade:number}[]) => Promise<void>;
   devolverContrato: (num:string,patrimonioCodigos:string[]) => Promise<void>;
   inspecionarContrato: (num:string,resultado:"APROVADO"|"MANUTENCAO",observacao?:string,patrimonioCodigos?:string[]) => Promise<void>;
   reset: () => void;
@@ -151,8 +151,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return contrato;
     },
 
-    expedirContrato: async (num,itemIds) => {
-      const atualizado = await atendimentoApi.expedirContrato(num,itemIds);
+    expedirContrato: async (num,alocacoes) => {
+      const atualizado = await atendimentoApi.expedirContrato(num,alocacoes);
       setDb((d) => ({ ...d, contratos: d.contratos.map((c) => c.numero === num ? atualizado : c) }));
     },
 

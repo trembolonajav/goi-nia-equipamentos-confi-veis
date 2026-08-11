@@ -5,7 +5,6 @@ export interface PatrimonioApi{codigo:string;produtoId:string;produto:string;ser
 export interface AgendaApi { id:number; contrato:string; clienteId:string; cliente:string; tipo:"ENTREGA"|"COLETA"; data:string; hora:string; destino:string; endereco:string; status:"PENDENTE"|"CONCLUIDA"; }
 export interface ObraApi { clienteId:string; cliente:string; nome:string; endereco:string; restricao:string; frete:number; situacao:string; }
 export interface CobrancaApi { id:number; contrato:string; clienteId:string; cliente:string; descricao:string; vencimento:string; valor:number; recebido:number; saldo:number; status:"ABERTA"|"PARCIAL"|"PAGA"|"VENCIDA"; }
-export interface CaucaoApi { id:number; contrato:string; clienteId:string; cliente:string; valor:number; status:"PENDENTE"|"RETIDA"|"LIBERADA"|"EM_ANALISE"; atualizadoEm:string; }
 export interface ContaFinanceiraApi{id:number;nome:string;tipo:string;saldoInicial:number;ativo:boolean}
 export interface LancamentoFinanceiroApi{id:number;tipo:"ENTRADA"|"SAIDA";descricao:string;categoria:string;contaId:number;conta:string;vencimento:string;pagamento:string|null;valor:number;status:"ABERTO"|"VENCIDO"|"PAGO"|"CANCELADO";forma:string;origem:string;referencia?:string;observacao?:string}
 export interface ResumoFinanceiroApi{saldo:number;entradas:number;saidas:number;aReceber:number;aPagar:number}
@@ -14,7 +13,7 @@ export interface ServicoApi { id:number; nome:string; natureza:string; valor:num
 export interface EventoOperacionalApi {id:number;tipo:"TROCA"|"OCORRENCIA";contrato:string;clienteId:string;categoria:string;descricao:string;prioridade:string;patrimonioOrigem?:string;patrimonioDestino?:string;status:"ABERTA"|"CONCLUIDA";responsavel:string;criadoEm:string;concluidoEm?:string|null}
 export interface CategoriaProdutoApi{id:number;nome:string;prefixo:string}
 export interface ComposicaoApi{id:string;nome:string;principal:string;inclusos:string[];opcionais:{nome:string;valor:number}[];nota:string}
-export interface ContratoItemOperacionalApi{id:number;produtoId:string;descricao:string;quantidade:number;status:string;inicio:string;fim:string;valor:number;patrimonios:{codigo:string;estado:string;serie:string}[]}
+export interface ContratoItemOperacionalApi{id:number;produtoId:string;descricao:string;quantidade:number;expedido:number;aExpedir:number;entregue:number;status:string;inicio:string;fim:string;valor:number;patrimonios:{codigo:string;estado:string;serie:string;entregue:boolean}[]}
 
 const API = import.meta.env.VITE_API_URL || "/api";
 
@@ -43,7 +42,8 @@ export const atendimentoApi = {
   contratos: () => request<Contrato[]>("/atendimento/contratos"),
   aprovarPedido: (numero: string, pedido: Pedido, contrato: Contrato) => request<Contrato>(`/atendimento/pedidos/${numero}/aprovar`, { method: "POST", body: JSON.stringify({ pedido, contrato }) }),
   itensOperacionaisContrato:(numero:string)=>request<ContratoItemOperacionalApi[]>(`/atendimento/contratos/${numero}/itens-operacionais`),
-  expedirContrato: (numero:string,itemIds:number[]) => request<Contrato>(`/atendimento/contratos/${numero}/expedir`, { method:"POST",body:JSON.stringify({itemIds}) }),
+  expedirContrato: (numero:string,alocacoes:{itemId:number;quantidade:number}[]) => request<Contrato>(`/atendimento/contratos/${numero}/expedir`, { method:"POST",body:JSON.stringify({alocacoes}) }),
+  confirmarEntregaContrato:(numero:string,patrimonioCodigos:string[])=>request<Contrato>(`/atendimento/contratos/${numero}/confirmar-entrega`,{method:"POST",body:JSON.stringify({patrimonioCodigos})}),
   devolverContrato: (numero:string,patrimonioCodigos:string[]) => request<Contrato>(`/atendimento/contratos/${numero}/devolver`, { method:"POST",body:JSON.stringify({patrimonioCodigos}) }),
   inspecionarContrato: (numero:string,resultado:"APROVADO"|"MANUTENCAO",observacao="",patrimonioCodigos:string[]=[]) => request<Contrato>(`/atendimento/contratos/${numero}/inspecionar`, { method:"POST",body:JSON.stringify({resultado,observacao,patrimonioCodigos}) }),
   manutencoes: () => request<ManutencaoApi[]>("/atendimento/manutencoes"),
@@ -54,7 +54,6 @@ export const atendimentoApi = {
   obras: () => request<ObraApi[]>("/atendimento/obras"),
   cobrancas: () => request<CobrancaApi[]>("/atendimento/cobrancas"),
   receberCobranca: (id:number,dados:{valor:number;forma:string;contaId:number;dataPagamento:string;observacao?:string}) => request<CobrancaApi>(`/atendimento/cobrancas/${id}/receber`,{method:"POST",body:JSON.stringify(dados)}),
-  caucoes: () => request<CaucaoApi[]>("/atendimento/caucoes"),
   contasFinanceiras:()=>request<ContaFinanceiraApi[]>("/atendimento/financeiro/contas"),
   resumoFinanceiro:()=>request<ResumoFinanceiroApi>("/atendimento/financeiro/resumo"),
   lancamentosFinanceiros:()=>request<LancamentoFinanceiroApi[]>("/atendimento/financeiro/lancamentos"),

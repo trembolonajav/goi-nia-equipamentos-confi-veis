@@ -41,6 +41,7 @@ public class AtendimentoController {
   @DeleteMapping("/contratos/documentos/{id}") @ResponseStatus(HttpStatus.NO_CONTENT) public void excluirArquivoContrato(@PathVariable long id){documentosContrato.excluir(id);}
   @GetMapping("/contratos/{numero}/itens-operacionais") public List<Map<String,Object>> itensOperacionais(@PathVariable String numero){return operacao.itensOperacionais(numero);}
   @PostMapping("/contratos/{numero}/expedir") public Map<String,Object> expedir(@PathVariable String numero,@RequestBody Map<String,Object> body) { return operacao.expedir(numero,body); }
+  @PostMapping("/contratos/{numero}/confirmar-entrega") public Map<String,Object> confirmarEntrega(@PathVariable String numero,@RequestBody Map<String,Object> body) { return operacao.confirmarEntrega(numero,body); }
   @PostMapping("/contratos/{numero}/devolver") public Map<String,Object> devolver(@PathVariable String numero,@RequestBody Map<String,Object> body) { return operacao.devolver(numero,body); }
   @PostMapping("/contratos/{numero}/inspecionar") public Map<String,Object> inspecionar(@PathVariable String numero, @RequestBody Map<String,Object> body) {
     return operacao.inspecionar(numero,body);
@@ -53,7 +54,6 @@ public class AtendimentoController {
   @GetMapping("/cobrancas") public List<Map<String,Object>> cobrancas(){return financeiro.cobrancas();}
   @PostMapping("/cobrancas/{id}/receber") public Map<String,Object> receber(@PathVariable long id,@RequestBody Map<String,Object> body){return financeiro.receber(id,body);}
   @PostMapping("/recebimentos/{id}/estornar") public Map<String,Object> estornarRecebimento(@PathVariable long id){return financeiro.estornarRecebimento(id);}
-  @GetMapping("/caucoes") public List<Map<String,Object>> caucoes(){return financeiro.caucoes();}
   @GetMapping("/financeiro/contas") public List<Map<String,Object>> contasFinanceiras(){return financeiro.contas();}
   @GetMapping("/financeiro/resumo") public Map<String,Object> resumoFinanceiro(){return financeiro.resumo();}
   @GetMapping("/financeiro/lancamentos") public List<Map<String,Object>> lancamentosFinanceiros(){return financeiro.lancamentos();}
