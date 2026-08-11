@@ -34,9 +34,9 @@ interface StoreApi {
   atualizarCliente: (c: Cliente) => Promise<void>;
   criarPedido: (args: CriarPedidoArgs) => Promise<Pedido>;
   aprovarPedido: (num: string) => Promise<Contrato | undefined>;
-  expedirContrato: (num: string) => Promise<void>;
-  devolverContrato: (num: string) => Promise<void>;
-  inspecionarContrato: (num: string, resultado: "APROVADO" | "MANUTENCAO", observacao?: string) => Promise<void>;
+  expedirContrato: (num:string,itemIds:number[]) => Promise<void>;
+  devolverContrato: (num:string,patrimonioCodigos:string[]) => Promise<void>;
+  inspecionarContrato: (num:string,resultado:"APROVADO"|"MANUTENCAO",observacao?:string,patrimonioCodigos?:string[]) => Promise<void>;
   reset: () => void;
 }
 
@@ -151,18 +151,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return contrato;
     },
 
-    expedirContrato: async (num) => {
-      const atualizado = await atendimentoApi.expedirContrato(num);
+    expedirContrato: async (num,itemIds) => {
+      const atualizado = await atendimentoApi.expedirContrato(num,itemIds);
       setDb((d) => ({ ...d, contratos: d.contratos.map((c) => c.numero === num ? atualizado : c) }));
     },
 
-    devolverContrato: async (num) => {
-      const atualizado = await atendimentoApi.devolverContrato(num);
+    devolverContrato: async (num,patrimonioCodigos) => {
+      const atualizado = await atendimentoApi.devolverContrato(num,patrimonioCodigos);
       setDb((d) => ({ ...d, contratos: d.contratos.map((c) => c.numero === num ? atualizado : c) }));
     },
 
-    inspecionarContrato: async (num, resultado, observacao = "") => {
-      const atualizado = await atendimentoApi.inspecionarContrato(num, resultado, observacao);
+    inspecionarContrato: async (num, resultado, observacao = "",patrimonioCodigos=[]) => {
+      const atualizado = await atendimentoApi.inspecionarContrato(num, resultado, observacao,patrimonioCodigos);
       setDb((d) => ({ ...d, contratos: d.contratos.map((c) => c.numero === num ? atualizado : c) }));
     },
 

@@ -43,15 +43,67 @@ public class FinanceiroService {
   @Transactional public Map<String,Object> baixar(long id,Map<String,Object>b){jdbc.sql("update lancamento_financeiro set status='PAGO',pagamento=:p,forma=:f,atualizado_em=now() where id=:id and status='ABERTO'").param("p",LocalDate.parse(String.valueOf(b.getOrDefault("pagamento",LocalDate.now())))).param("f",String.valueOf(b.getOrDefault("forma","Pix"))).param("id",id).update();return porId(id);}
   @Transactional public Map<String,Object> cancelar(long id){jdbc.sql("update lancamento_financeiro set status='CANCELADO',atualizado_em=now() where id=:id and status='ABERTO'").param("id",id).update();return porId(id);}
   private Map<String,Object> porId(long id){return lancamentos().stream().filter(x->((Number)x.get("id")).longValue()==id).findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Lançamento não encontrado"));}
-  @Transactional public Map<String,Object> receber(long id,BigDecimal valor,String forma){
+  @Transactional public Map<String,Object> receber(long id,Map<String,Object> body){
+    BigDecimal valor=new BigDecimal(String.valueOf(body.getOrDefault("valor","0")));
+    String forma=String.valueOf(body.getOrDefault("forma","Pix")).trim();
+    LocalDate dataPagamento=LocalDate.parse(String.valueOf(body.getOrDefault("dataPagamento",LocalDate.now())));
+    long contaId=Long.parseLong(String.valueOf(body.getOrDefault("contaId","0")));
+    if(contaId<=0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Selecione a conta financeira");
+    Integer contaExiste=jdbc.sql("select count(*) from conta_financeira where id=:id and ativo").param("id",contaId).query(Integer.class).single();
+    if(contaExiste==0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Conta financeira inválida ou inativa");
     Map<String,Object>c=jdbc.sql("select valor,recebido,status from cobranca_atendimento where id=:id for update").param("id",id).query((r,n)->Map.<String,Object>of("valor",r.getBigDecimal("valor"),"recebido",r.getBigDecimal("recebido"),"status",r.getString("status"))).optional().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Cobrança não encontrada"));
     BigDecimal saldo=((BigDecimal)c.get("valor")).subtract((BigDecimal)c.get("recebido"));
     if(valor.signum()<=0||valor.compareTo(saldo)>0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Valor deve ser positivo e não pode superar o saldo");
-    jdbc.sql("insert into recebimento_atendimento(cobranca_id,valor,forma) values (:id,:v,:f)").param("id",id).param("v",valor).param("f",forma).update();
+    jdbc.sql("insert into recebimento_atendimento(cobranca_id,valor,forma,conta_id,data_pagamento,observacao) values (:id,:v,:f,:c,:p,:o)").param("id",id).param("v",valor).param("f",forma).param("c",contaId).param("p",dataPagamento).param("o",String.valueOf(body.getOrDefault("observacao",""))).update();
     String status=valor.compareTo(saldo)==0?"PAGA":"PARCIAL";
     jdbc.sql("update cobranca_atendimento set recebido=recebido+:v,status=:s where id=:id").param("v",valor).param("s",status).param("id",id).update();
     Map<String,Object> dados=jdbc.sql("select contrato_numero,descricao from cobranca_atendimento where id=:id").param("id",id).query((r,n)->Map.<String,Object>of("contrato",r.getString("contrato_numero"),"descricao",r.getString("descricao"))).single();
-    long conta=((Number)contas().get(0).get("id")).longValue();jdbc.sql("insert into lancamento_financeiro(tipo,descricao,categoria,conta_id,vencimento,pagamento,valor,status,forma,origem,referencia) values('ENTRADA',:d,'Locações',:c,current_date,current_date,:v,'PAGO',:f,'COBRANCA',:r)").param("d",dados.get("descricao")).param("c",conta).param("v",valor).param("f",forma).param("r","CB-"+id+"-"+System.nanoTime()).update();
+    jdbc.sql("insert into lancamento_financeiro(tipo,descricao,categoria,conta_id,vencimento,pagamento,valor,status,forma,origem,referencia,observacao) values('ENTRADA',:d,'Locações',:c,:p,:p,:v,'PAGO',:f,'COBRANCA',:r,:o)").param("d",dados.get("descricao")).param("c",contaId).param("p",dataPagamento).param("v",valor).param("f",forma).param("r","CB-"+id+"-"+System.nanoTime()).param("o",String.valueOf(body.getOrDefault("observacao",""))).update();
     return cobrancas().stream().filter(x->x.get("id").equals(id)).findFirst().orElseThrow();
   }
+
+  @Transactional public Map<String,Object> estornarRecebimento(long recebimentoId){
+    Map<String,Object> recebimento=jdbc.sql("select id,cobranca_id,valor,forma,conta_id,data_pagamento,estornado_em from recebimento_atendimento where id=:id for update")
+      .param("id",recebimentoId).query((r,n)->{Map<String,Object> m=new LinkedHashMap<>();m.put("cobrancaId",r.getLong("cobranca_id"));m.put("valor",r.getBigDecimal("valor"));m.put("forma",r.getString("forma"));m.put("contaId",r.getLong("conta_id"));m.put("data",r.getDate("data_pagamento").toLocalDate());m.put("estornado",r.getTimestamp("estornado_em")!=null);return m;})
+      .optional().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Recebimento não encontrado"));
+    if(Boolean.TRUE.equals(recebimento.get("estornado")))throw new ResponseStatusException(HttpStatus.CONFLICT,"Recebimento já estornado");
+    long cobrancaId=((Number)recebimento.get("cobrancaId")).longValue(); BigDecimal valor=(BigDecimal)recebimento.get("valor");
+    Map<String,Object> cobranca=jdbc.sql("select descricao,recebido,valor from cobranca_atendimento where id=:id for update").param("id",cobrancaId)
+      .query((r,n)->Map.<String,Object>of("descricao",r.getString("descricao"),"recebido",r.getBigDecimal("recebido"),"valor",r.getBigDecimal("valor"))).single();
+    BigDecimal novoRecebido=((BigDecimal)cobranca.get("recebido")).subtract(valor);
+    if(novoRecebido.signum()<0)throw new ResponseStatusException(HttpStatus.CONFLICT,"Recebimento incompatível com o saldo da cobrança");
+    String status=novoRecebido.signum()==0?"ABERTA":novoRecebido.compareTo((BigDecimal)cobranca.get("valor"))<0?"PARCIAL":"PAGA";
+    jdbc.sql("update recebimento_atendimento set estornado_em=now(),estornado_por='Sistema' where id=:id and estornado_em is null").param("id",recebimentoId).update();
+    jdbc.sql("update cobranca_atendimento set recebido=:r,status=:s where id=:id").param("r",novoRecebido).param("s",status).param("id",cobrancaId).update();
+    jdbc.sql("insert into lancamento_financeiro(tipo,descricao,categoria,conta_id,vencimento,pagamento,valor,status,forma,origem,referencia,observacao) values('SAIDA',:d,'Estornos',:c,:p,:p,:v,'PAGO',:f,'ESTORNO_RECEBIMENTO',:r,:o)")
+      .param("d","Estorno - "+cobranca.get("descricao")).param("c",recebimento.get("contaId")).param("p",LocalDate.now()).param("v",valor).param("f",recebimento.get("forma")).param("r","REC-"+recebimentoId).param("o","Reversão do recebimento "+recebimentoId).update();
+    return cobrancas().stream().filter(x->x.get("id").equals(cobrancaId)).findFirst().orElseThrow();
+  }
+
+  @Transactional public Map<String,Object> criarContaPagar(Map<String,Object> body){
+    String fornecedor=String.valueOf(body.getOrDefault("fornecedor","")).trim(),descricao=String.valueOf(body.getOrDefault("descricao","")).trim(),categoria=String.valueOf(body.getOrDefault("categoria","Outros")).trim();
+    BigDecimal valor=new BigDecimal(String.valueOf(body.getOrDefault("valor","0"))); LocalDate vencimento=LocalDate.parse(String.valueOf(body.getOrDefault("vencimento",LocalDate.now())));
+    if(fornecedor.length()<2||descricao.length()<3||valor.signum()<=0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Informe fornecedor, descrição e valor positivo");
+    Long id=jdbc.sql("insert into conta_pagar(fornecedor,descricao,categoria,vencimento,valor,saldo) values(:f,:d,:c,:v,:valor,:valor) returning id")
+      .param("f",fornecedor).param("d",descricao).param("c",categoria).param("v",vencimento).param("valor",valor).query(Long.class).single();
+    return contaPagar(id);
+  }
+
+  @Transactional public Map<String,Object> pagarConta(long id,Map<String,Object> body){
+    Map<String,Object> conta=jdbc.sql("select id,descricao,vencimento,saldo,status from conta_pagar where id=:id for update").param("id",id)
+      .query((r,n)->Map.<String,Object>of("descricao",r.getString("descricao"),"vencimento",r.getDate("vencimento").toLocalDate(),"saldo",r.getBigDecimal("saldo"),"status",r.getString("status"))).optional()
+      .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Conta a pagar não encontrada"));
+    BigDecimal valor=new BigDecimal(String.valueOf(body.getOrDefault("valor",conta.get("saldo")))); BigDecimal saldo=(BigDecimal)conta.get("saldo");
+    long contaId=Long.parseLong(String.valueOf(body.getOrDefault("contaId","0"))); LocalDate pagamento=LocalDate.parse(String.valueOf(body.getOrDefault("dataPagamento",LocalDate.now()))); String forma=String.valueOf(body.getOrDefault("forma","Pix"));
+    if(!"ABERTA".equals(conta.get("status"))&& !"PARCIAL".equals(conta.get("status")))throw new ResponseStatusException(HttpStatus.CONFLICT,"Conta não está aberta para pagamento");
+    if(valor.signum()<=0||valor.compareTo(saldo)>0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Valor deve ser positivo e não pode superar o saldo");
+    Integer contaExiste=jdbc.sql("select count(*) from conta_financeira where id=:id and ativo").param("id",contaId).query(Integer.class).single(); if(contaExiste==0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Conta financeira inválida ou inativa");
+    Long lancamento=jdbc.sql("insert into lancamento_financeiro(tipo,descricao,categoria,conta_id,vencimento,pagamento,valor,status,forma,origem,referencia) values('SAIDA',:d,'Contas a pagar',:c,:v,:p,:valor,'PAGO',:f,'CONTA_PAGAR',:r) returning id")
+      .param("d",conta.get("descricao")).param("c",contaId).param("v",conta.get("vencimento")).param("p",pagamento).param("valor",valor).param("f",forma).param("r","CP-"+id+"-"+System.nanoTime()).query(Long.class).single();
+    jdbc.sql("insert into pagamento_conta(conta_pagar_id,lancamento_id,valor) values(:cp,:l,:v)").param("cp",id).param("l",lancamento).param("v",valor).update();
+    BigDecimal novo=saldo.subtract(valor); jdbc.sql("update conta_pagar set saldo=:s,status=:st where id=:id").param("s",novo).param("st",novo.signum()==0?"PAGA":"PARCIAL").param("id",id).update();
+    return contaPagar(id);
+  }
+
+  private Map<String,Object> contaPagar(long id){return jdbc.sql("select id,fornecedor,descricao,categoria,vencimento,valor,saldo,status from conta_pagar where id=:id").param("id",id).query().listOfRows().stream().findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Conta a pagar não encontrada"));}
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../data/store";
 import { PageHeader, Tag, useToast } from "../components/ui";
-import { atendimentoApi, type DocumentoClienteApi } from "../lib/api";
+import { atendimentoApi, type ContratoItemOperacionalApi, type DocumentoClienteApi } from "../lib/api";
 
 const TIPO_CONTRATO="Contrato assinado";
 const TIPO_ENTREGA="Comprovante de entrega assinado";
@@ -16,9 +16,11 @@ export default function Expedicoes() {
   const [enviando,setEnviando]=useState(false);
   const [confirmando,setConfirmando]=useState(false);
   const [visualizando,setVisualizando]=useState<DocumentoClienteApi|null>(null);
-  const fila = contratos.filter(c=>c.situacao==="Aguardando pagamento"&&c.itens.some(i=>["Reservado","Em separação"].includes(i.estado)));
+  const [itens,setItens]=useState<ContratoItemOperacionalApi[]>([]);
+  const [selecionados,setSelecionados]=useState<number[]>([]);
+  const fila = contratos.filter(c=>["Aguardando pagamento","Parcialmente expedido"].includes(c.situacao)&&c.itens.some(i=>["Reservado","Em separação"].includes(i.estado)));
 
-  useEffect(()=>{if(!aberto){setDocs([]);return}void atendimentoApi.documentosContrato(aberto).then(setDocs).catch(()=>setDocs([]))},[aberto]);
+  useEffect(()=>{if(!aberto){setDocs([]);setItens([]);setSelecionados([]);return}Promise.all([atendimentoApi.documentosContrato(aberto),atendimentoApi.itensOperacionaisContrato(aberto)]).then(([d,i])=>{setDocs(d);setItens(i);setSelecionados([])}).catch(()=>{setDocs([]);setItens([]);setSelecionados([])})},[aberto]);
   const tem=(tipo:string)=>docs.some(d=>d.tipo===tipo);
   const viaEntrega=docs.find(d=>d.tipo===TIPO_ENTREGA);
 
@@ -41,7 +43,8 @@ export default function Expedicoes() {
             <p className="section-note">Abra o modelo, imprima ou salve, recolha a assinatura do cliente e anexe a via digitalizada.</p>
             <div className="row wrap" style={{gap:8}}><button className="btn btn-ghost" onClick={()=>nav(`/app/contratos/${c.numero}/entrega`)}>Visualizar modelo</button><label className={`btn btn-outline${enviando?" disabled":""}`}><input hidden type="file" accept="application/pdf,image/jpeg,image/png" disabled={enviando} onChange={async e=>{const f=e.target.files?.[0];if(!f)return;setEnviando(true);try{await atendimentoApi.anexarDocumentoContrato(c.numero,TIPO_ENTREGA,f);setDocs(await atendimentoApi.documentosContrato(c.numero));toast("Comprovante de entrega anexado.")}catch(err){toast(err instanceof Error?err.message:"Falha no envio.")}finally{setEnviando(false);e.currentTarget.value=""}}}/>{enviando?"Enviando...":viaEntrega?"Substituir via assinada":"Anexar via assinada"}</label></div>
             {viaEntrega&&<div className="client-document-row" style={{marginTop:12}}><button className="client-document-main" onClick={()=>setVisualizando(viaEntrega)}><span className="document-file-icon">{viaEntrega.mime==="application/pdf"?"PDF":"IMG"}</span><span><strong>{viaEntrega.nome}</strong><small>{(viaEntrega.tamanho/1024/1024).toFixed(2)} MB</small></span></button><div className="client-document-actions"><button className="btn btn-ghost btn-sm" onClick={()=>setVisualizando(viaEntrega)}>Visualizar</button><a className="btn btn-ghost btn-sm" href={atendimentoApi.urlDownloadDocumentoContrato(viaEntrega.id)}>Baixar</a></div></div>}
-            <div className="expedition-confirm"><span><strong>Confirmação da entrega</strong><small>Esta ação vincula a saída dos equipamentos e inicia a locação.</small></span><button className="btn btn-primary" disabled={!viaEntrega||confirmando} onClick={async()=>{setConfirmando(true);try{await expedirContrato(c.numero);toast(`Expedição de ${c.numero} concluída.`);setAberto(null)}catch(err){toast(err instanceof Error?err.message:"Não foi possível registrar a saída.")}finally{setConfirmando(false)}}}>{confirmando?"Confirmando...":"Confirmar saída e entrega"}</button></div>
+            <div className="operation-selection"><div><strong>Itens que sairão agora</strong><small>Selecione somente os equipamentos efetivamente entregues nesta saída.</small></div>{itens.filter(i=>["RESERVADO","A_EXPEDIR"].includes(i.status)).map(i=><label className="operation-option" key={i.id}><input type="checkbox" checked={selecionados.includes(i.id)} onChange={()=>setSelecionados(s=>s.includes(i.id)?s.filter(id=>id!==i.id):[...s,i.id])}/><span><strong>{i.quantidade}× {i.descricao}</strong><small>{i.produtoId} · {i.status}</small></span></label>)}</div>
+            <div className="expedition-confirm"><span><strong>Confirmação da entrega</strong><small>Apenas os itens selecionados serão expedidos; os demais continuarão pendentes.</small></span><button className="btn btn-primary" disabled={!viaEntrega||!selecionados.length||confirmando} onClick={async()=>{setConfirmando(true);try{await expedirContrato(c.numero,selecionados);toast(`${selecionados.length} item(ns) expedido(s) em ${c.numero}.`);setAberto(null)}catch(err){toast(err instanceof Error?err.message:"Não foi possível registrar a saída.")}finally{setConfirmando(false)}}}>{confirmando?"Confirmando...":"Confirmar saída selecionada"}</button></div>
           </>}
         </section>}
       </div>)}

@@ -14,6 +14,7 @@ export interface ServicoApi { id:number; nome:string; natureza:string; valor:num
 export interface EventoOperacionalApi {id:number;tipo:"TROCA"|"OCORRENCIA";contrato:string;clienteId:string;categoria:string;descricao:string;prioridade:string;patrimonioOrigem?:string;patrimonioDestino?:string;status:"ABERTA"|"CONCLUIDA";responsavel:string;criadoEm:string;concluidoEm?:string|null}
 export interface CategoriaProdutoApi{id:number;nome:string;prefixo:string}
 export interface ComposicaoApi{id:string;nome:string;principal:string;inclusos:string[];opcionais:{nome:string;valor:number}[];nota:string}
+export interface ContratoItemOperacionalApi{id:number;produtoId:string;descricao:string;quantidade:number;status:string;inicio:string;fim:string;valor:number;patrimonios:{codigo:string;estado:string;serie:string}[]}
 
 const API = import.meta.env.VITE_API_URL || "/api";
 
@@ -41,9 +42,10 @@ export const atendimentoApi = {
   salvarPedido: (pedido: Pedido) => request<Pedido>("/atendimento/pedidos", { method: "POST", body: JSON.stringify(pedido) }),
   contratos: () => request<Contrato[]>("/atendimento/contratos"),
   aprovarPedido: (numero: string, pedido: Pedido, contrato: Contrato) => request<Contrato>(`/atendimento/pedidos/${numero}/aprovar`, { method: "POST", body: JSON.stringify({ pedido, contrato }) }),
-  expedirContrato: (numero: string) => request<Contrato>(`/atendimento/contratos/${numero}/expedir`, { method: "POST" }),
-  devolverContrato: (numero: string) => request<Contrato>(`/atendimento/contratos/${numero}/devolver`, { method: "POST" }),
-  inspecionarContrato: (numero: string, resultado: "APROVADO" | "MANUTENCAO", observacao = "") => request<Contrato>(`/atendimento/contratos/${numero}/inspecionar`, { method: "POST", body: JSON.stringify({ resultado, observacao }) }),
+  itensOperacionaisContrato:(numero:string)=>request<ContratoItemOperacionalApi[]>(`/atendimento/contratos/${numero}/itens-operacionais`),
+  expedirContrato: (numero:string,itemIds:number[]) => request<Contrato>(`/atendimento/contratos/${numero}/expedir`, { method:"POST",body:JSON.stringify({itemIds}) }),
+  devolverContrato: (numero:string,patrimonioCodigos:string[]) => request<Contrato>(`/atendimento/contratos/${numero}/devolver`, { method:"POST",body:JSON.stringify({patrimonioCodigos}) }),
+  inspecionarContrato: (numero:string,resultado:"APROVADO"|"MANUTENCAO",observacao="",patrimonioCodigos:string[]=[]) => request<Contrato>(`/atendimento/contratos/${numero}/inspecionar`, { method:"POST",body:JSON.stringify({resultado,observacao,patrimonioCodigos}) }),
   manutencoes: () => request<ManutencaoApi[]>("/atendimento/manutencoes"),
   abrirManutencao:(dados:{patrimonio:string;motivo:string;tipo:string;prioridade:string;fornecedor:string;previsao:string;custoEstimado:number})=>request<ManutencaoApi>("/atendimento/manutencoes",{method:"POST",body:JSON.stringify(dados)}),
   patrimonios:()=>request<PatrimonioApi[]>("/atendimento/patrimonios"),
@@ -51,7 +53,7 @@ export const atendimentoApi = {
   agenda: () => request<AgendaApi[]>("/atendimento/agenda"),
   obras: () => request<ObraApi[]>("/atendimento/obras"),
   cobrancas: () => request<CobrancaApi[]>("/atendimento/cobrancas"),
-  receberCobranca: (id:number,valor:number,forma="Pix") => request<CobrancaApi>(`/atendimento/cobrancas/${id}/receber`,{method:"POST",body:JSON.stringify({valor,forma})}),
+  receberCobranca: (id:number,dados:{valor:number;forma:string;contaId:number;dataPagamento:string;observacao?:string}) => request<CobrancaApi>(`/atendimento/cobrancas/${id}/receber`,{method:"POST",body:JSON.stringify(dados)}),
   caucoes: () => request<CaucaoApi[]>("/atendimento/caucoes"),
   contasFinanceiras:()=>request<ContaFinanceiraApi[]>("/atendimento/financeiro/contas"),
   resumoFinanceiro:()=>request<ResumoFinanceiroApi>("/atendimento/financeiro/resumo"),

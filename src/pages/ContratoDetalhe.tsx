@@ -4,7 +4,7 @@ import { useStore } from "../data/store";
 import { PATRIMONIOS, COR_ESTADO } from "../data/mock";
 import { Tag, Thumb, useToast } from "../components/ui";
 import { brl, periodoCurto } from "../lib/calc";
-import { atendimentoApi,type DocumentoClienteApi } from "../lib/api";
+import { atendimentoApi,type ContratoItemOperacionalApi,type DocumentoClienteApi } from "../lib/api";
 const DOCUMENTOS_FLUXO=[
   {tipo:"Contrato assinado",titulo:"Contrato de locação",modelo:"documento",fase:"Contrato"},
   {tipo:"Comprovante de entrega assinado",titulo:"Comprovante de entrega / saída",modelo:"entrega",fase:"Expedição"},
@@ -20,7 +20,9 @@ export default function ContratoDetalhe() {
   const [enviando,setEnviando]=useState("");
   const [visualizando,setVisualizando]=useState<DocumentoClienteApi|null>(null);
   const [modalAvaria,setModalAvaria]=useState(false),[motivoAvaria,setMotivoAvaria]=useState(""),[fotosAvaria,setFotosAvaria]=useState<File[]>([]),[salvandoAvaria,setSalvandoAvaria]=useState(false);
+  const [itensOperacionais,setItensOperacionais]=useState<ContratoItemOperacionalApi[]>([]),[patrimoniosInspecao,setPatrimoniosInspecao]=useState<string[]>([]);
   useEffect(()=>{if(numero)void atendimentoApi.documentosContrato(numero).then(setDocumentosAssinados)},[numero]);
+  useEffect(()=>{if(numero)void atendimentoApi.itensOperacionaisContrato(numero).then(setItensOperacionais).catch(()=>setItensOperacionais([]))},[numero]);
 
   const ct = getContrato(numero!);
   if (!ct) return <main className="page"><div className="empty">Contrato não encontrado.</div></main>;
@@ -54,7 +56,7 @@ export default function ContratoDetalhe() {
         <button className="btn btn-ghost" onClick={()=>nav(`/app/contratos/${ct.numero}/documento`)}>Visualizar contrato</button>
         {ct.situacao === "Aguardando pagamento" && <button className="btn btn-primary" disabled={!temDocumento("Contrato assinado")} title={temDocumento("Contrato assinado")?"Continuar para a etapa de expedição":"Anexe primeiro o contrato assinado"} onClick={()=>nav("/app/expedicoes")}>{temDocumento("Contrato assinado")?"Continuar para expedição":"Aguardando contrato assinado"}</button>}
         {ct.situacao === "Em andamento" && <button className="btn btn-green" onClick={()=>nav(`/app/devolucoes?contrato=${encodeURIComponent(ct.numero)}`)}>Continuar para devolução</button>}
-        {ct.situacao === "Em inspeção" && <button className="btn btn-green" onClick={async () => { try { await inspecionarContrato(ct.numero, "APROVADO"); toast("Inspeção aprovada. Patrimônios liberados."); } catch { toast("Não foi possível concluir a inspeção."); } }}>Aprovar inspeção</button>}
+        {ct.situacao === "Em inspeção" && <button className="btn btn-green" disabled={!patrimoniosInspecao.length} onClick={async () => { try { await inspecionarContrato(ct.numero, "APROVADO", undefined, patrimoniosInspecao); toast("Inspeção aprovada para os patrimônios selecionados."); setPatrimoniosInspecao([]); } catch { toast("Não foi possível concluir a inspeção."); } }}>Aprovar selecionados</button>}
         {ct.situacao === "Em inspeção" && <button className="btn btn-ghost" onClick={()=>setModalAvaria(true)}>Registrar avaria / manutenção</button>}
         <button className="btn btn-ghost" onClick={() => nav(`/app/clientes/${ct.clienteId}`)}>Ver ficha do cliente</button>
       </div>
@@ -89,6 +91,8 @@ export default function ContratoDetalhe() {
               })}
             </div>
           </section>
+
+          {ct.situacao==="Em inspeção"&&<section className="card"><h2 className="h2">Patrimônios em inspeção</h2><p className="section-note">Selecione as unidades que serão liberadas ou enviadas para manutenção nesta ação.</p><div className="operation-selection">{itensOperacionais.flatMap(i=>i.patrimonios.filter(p=>p.estado==="EM_INSPECAO").map(p=><label className="operation-option" key={p.codigo}><input type="checkbox" checked={patrimoniosInspecao.includes(p.codigo)} onChange={()=>setPatrimoniosInspecao(s=>s.includes(p.codigo)?s.filter(c=>c!==p.codigo):[...s,p.codigo])}/><span><strong>{p.codigo} · {i.descricao}</strong><small>{p.serie||"Recebido para inspeção"}</small></span></label>))}</div></section>}
 
           <section className="card">
             <h2 className="h2" style={{ marginBottom: 16 }}>Linha do tempo</h2>
@@ -143,7 +147,7 @@ export default function ContratoDetalhe() {
         </aside>
       </div>
       {visualizando&&<div className="document-modal" role="dialog" aria-modal="true" onMouseDown={e=>{if(e.target===e.currentTarget)setVisualizando(null)}}><div className="document-modal-card"><header><span><strong>{visualizando.tipo}</strong><small>{visualizando.nome}</small></span><div className="row" style={{gap:8}}><a className="btn btn-ghost btn-sm" href={atendimentoApi.urlDownloadDocumentoContrato(visualizando.id)}>Baixar</a><button className="document-modal-close" onClick={()=>setVisualizando(null)}>×</button></div></header><div className="document-preview">{visualizando.mime.startsWith("image/")?<img src={atendimentoApi.urlDocumentoContrato(visualizando.id)} alt={visualizando.nome}/>:<iframe src={atendimentoApi.urlDocumentoContrato(visualizando.id)} title={visualizando.nome}/>}</div></div></div>}
-      {modalAvaria&&<div className="document-modal"><div className="issue-modal"><header><div><div className="uplabel">Inspeção de devolução</div><h2 className="h2">Registrar avaria ou manutenção</h2></div><button className="document-modal-close" onClick={()=>setModalAvaria(false)}>×</button></header><label className="field"><span>Descrição detalhada do problema</span><textarea className="textarea" value={motivoAvaria} onChange={e=>setMotivoAvaria(e.target.value)} placeholder="Descreva o dano, peça ausente, comportamento apresentado e condições em que foi recebido..."/></label><label className="contract-signed-upload"><input type="file" multiple accept="image/jpeg,image/png,application/pdf" onChange={e=>setFotosAvaria(Array.from(e.target.files||[]))}/><span className="document-upload-icon">↑</span><span><strong>Anexar fotos e evidências</strong><small>{fotosAvaria.length?`${fotosAvaria.length} arquivo(s) selecionado(s)`:"PDF, JPG ou PNG · até 10 MB cada"}</small></span></label><div className="row" style={{gap:8,justifyContent:"flex-end"}}><button className="btn btn-ghost" onClick={()=>setModalAvaria(false)}>Cancelar</button><button className="btn btn-primary" disabled={salvandoAvaria||motivoAvaria.trim().length<10} onClick={async()=>{setSalvandoAvaria(true);try{for(const f of fotosAvaria)await atendimentoApi.anexarDocumentoContrato(ct.numero,"Evidência de avaria",f);await inspecionarContrato(ct.numero,"MANUTENCAO",motivoAvaria.trim());toast("Avaria documentada e manutenção aberta.");setModalAvaria(false)}catch(e){toast(e instanceof Error?e.message:"Não foi possível registrar.")}finally{setSalvandoAvaria(false)}}}>{salvandoAvaria?"Registrando...":"Registrar ocorrência"}</button></div></div></div>}
+      {modalAvaria&&<div className="document-modal"><div className="issue-modal"><header><div><div className="uplabel">Inspeção de devolução</div><h2 className="h2">Registrar avaria ou manutenção</h2></div><button className="document-modal-close" onClick={()=>setModalAvaria(false)}>×</button></header><label className="field"><span>Descrição detalhada do problema</span><textarea className="textarea" value={motivoAvaria} onChange={e=>setMotivoAvaria(e.target.value)} placeholder="Descreva o dano, peça ausente, comportamento apresentado e condições em que foi recebido..."/></label><label className="contract-signed-upload"><input type="file" multiple accept="image/jpeg,image/png,application/pdf" onChange={e=>setFotosAvaria(Array.from(e.target.files||[]))}/><span className="document-upload-icon">↑</span><span><strong>Anexar fotos e evidências</strong><small>{fotosAvaria.length?`${fotosAvaria.length} arquivo(s) selecionado(s)`:"PDF, JPG ou PNG · até 10 MB cada"}</small></span></label><div className="row" style={{gap:8,justifyContent:"flex-end"}}><button className="btn btn-ghost" onClick={()=>setModalAvaria(false)}>Cancelar</button><button className="btn btn-primary" disabled={salvandoAvaria||!patrimoniosInspecao.length||motivoAvaria.trim().length<10} onClick={async()=>{setSalvandoAvaria(true);try{for(const f of fotosAvaria)await atendimentoApi.anexarDocumentoContrato(ct.numero,"Evidência de avaria",f);await inspecionarContrato(ct.numero,"MANUTENCAO",motivoAvaria.trim(),patrimoniosInspecao);toast("Avaria documentada e manutenção aberta.");setPatrimoniosInspecao([]);setModalAvaria(false)}catch(e){toast(e instanceof Error?e.message:"Não foi possível registrar.")}finally{setSalvandoAvaria(false)}}}>{salvandoAvaria?"Registrando...":"Registrar ocorrência"}</button></div></div></div>}
     </main>
   );
 }

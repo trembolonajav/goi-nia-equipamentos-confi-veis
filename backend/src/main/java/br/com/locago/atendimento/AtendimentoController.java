@@ -39,10 +39,11 @@ public class AtendimentoController {
   @PostMapping(value="/contratos/{numero}/documentos",consumes=MediaType.MULTIPART_FORM_DATA_VALUE) @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> anexarContrato(@PathVariable String numero,@RequestParam(defaultValue="Contrato assinado")String tipo,@RequestPart MultipartFile arquivo){return documentosContrato.salvar(numero,tipo,arquivo);}
   @GetMapping("/contratos/documentos/{id}/arquivo") public ResponseEntity<org.springframework.core.io.Resource> arquivoContrato(@PathVariable long id,@RequestParam(defaultValue="false")boolean download){var d=documentosContrato.baixar(id);return ResponseEntity.ok().contentType(MediaType.parseMediaType(d.mime())).header(HttpHeaders.CONTENT_DISPOSITION,(download?"attachment":"inline")+"; filename=\""+d.nome().replace("\"","")+"\"").body(d.resource());}
   @DeleteMapping("/contratos/documentos/{id}") @ResponseStatus(HttpStatus.NO_CONTENT) public void excluirArquivoContrato(@PathVariable long id){documentosContrato.excluir(id);}
-  @PostMapping("/contratos/{numero}/expedir") public Map<String,Object> expedir(@PathVariable String numero) { return operacao.expedir(numero); }
-  @PostMapping("/contratos/{numero}/devolver") public Map<String,Object> devolver(@PathVariable String numero) { return operacao.devolver(numero); }
+  @GetMapping("/contratos/{numero}/itens-operacionais") public List<Map<String,Object>> itensOperacionais(@PathVariable String numero){return operacao.itensOperacionais(numero);}
+  @PostMapping("/contratos/{numero}/expedir") public Map<String,Object> expedir(@PathVariable String numero,@RequestBody Map<String,Object> body) { return operacao.expedir(numero,body); }
+  @PostMapping("/contratos/{numero}/devolver") public Map<String,Object> devolver(@PathVariable String numero,@RequestBody Map<String,Object> body) { return operacao.devolver(numero,body); }
   @PostMapping("/contratos/{numero}/inspecionar") public Map<String,Object> inspecionar(@PathVariable String numero, @RequestBody Map<String,Object> body) {
-    return operacao.inspecionar(numero, String.valueOf(body.getOrDefault("resultado","")), String.valueOf(body.getOrDefault("observacao","")));
+    return operacao.inspecionar(numero,body);
   }
   @GetMapping("/manutencoes") public List<Map<String,Object>> manutencoes(){return manutencao.listar();}
   @PostMapping("/manutencoes") @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> abrirManutencao(@RequestBody Map<String,Object> body){return manutencao.abrir(body);}
@@ -50,7 +51,8 @@ public class AtendimentoController {
   @GetMapping("/agenda") public List<Map<String,Object>> agenda(){return logistica.agenda();}
   @GetMapping("/obras") public List<Map<String,Object>> obras(){return logistica.obras();}
   @GetMapping("/cobrancas") public List<Map<String,Object>> cobrancas(){return financeiro.cobrancas();}
-  @PostMapping("/cobrancas/{id}/receber") public Map<String,Object> receber(@PathVariable long id,@RequestBody Map<String,Object> body){return financeiro.receber(id,new java.math.BigDecimal(String.valueOf(body.getOrDefault("valor","0"))),String.valueOf(body.getOrDefault("forma","Pix")));}
+  @PostMapping("/cobrancas/{id}/receber") public Map<String,Object> receber(@PathVariable long id,@RequestBody Map<String,Object> body){return financeiro.receber(id,body);}
+  @PostMapping("/recebimentos/{id}/estornar") public Map<String,Object> estornarRecebimento(@PathVariable long id){return financeiro.estornarRecebimento(id);}
   @GetMapping("/caucoes") public List<Map<String,Object>> caucoes(){return financeiro.caucoes();}
   @GetMapping("/financeiro/contas") public List<Map<String,Object>> contasFinanceiras(){return financeiro.contas();}
   @GetMapping("/financeiro/resumo") public Map<String,Object> resumoFinanceiro(){return financeiro.resumo();}
@@ -58,6 +60,8 @@ public class AtendimentoController {
   @PostMapping("/financeiro/lancamentos") public Map<String,Object> criarLancamento(@RequestBody Map<String,Object> body){return financeiro.criarLancamento(body);}
   @PostMapping("/financeiro/lancamentos/{id}/baixar") public Map<String,Object> baixarLancamento(@PathVariable long id,@RequestBody Map<String,Object> body){return financeiro.baixar(id,body);}
   @PostMapping("/financeiro/lancamentos/{id}/cancelar") public Map<String,Object> cancelarLancamento(@PathVariable long id){return financeiro.cancelar(id);}
+  @PostMapping("/financeiro/contas-pagar") @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> criarContaPagar(@RequestBody Map<String,Object> body){return financeiro.criarContaPagar(body);}
+  @PostMapping("/financeiro/contas-pagar/{id}/pagar") public Map<String,Object> pagarConta(@PathVariable long id,@RequestBody Map<String,Object> body){return financeiro.pagarConta(id,body);}
   @GetMapping("/servicos") public List<Map<String,Object>> servicos(){return servicos.listar();}
   @PostMapping("/servicos") public Map<String,Object> salvarServico(@RequestBody Map<String,Object> body){return servicos.salvar(body);}
   @GetMapping("/trocas") public List<Map<String,Object>> trocas(){return eventos.listar("TROCA");}
