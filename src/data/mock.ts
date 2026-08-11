@@ -102,7 +102,7 @@ export const CLIENTES: Cliente[] = [
 export interface ItemContrato { prod: string; qtd?: number; nome: string; patrimonio: string; estado: string; valor: number; }
 export interface Contrato {
   numero: string; clienteId: string; inicio: string; fim: string; situacao: string; pagamento: string; caucao: number; caucaoSit: string;
-  local: string; endereco: string; frete: number; servicos: number; locacao: number;
+  local: string; endereco: string; frete: number; servicos: number; locacao: number; desconto?: number; total?: number;
   itens: ItemContrato[]; memoria: { linha: string; valor: string }[];
   linha: { q: string; t: string; d: string; a: string }[]; docs: { nome: string; quando: string; ok: boolean }[];
 }
@@ -187,6 +187,7 @@ export interface Pedido {
   itens: { id?:number; prod: string; qtd: number; nome?:string; tipoPreco?:string; valorUnitario?:number; valor?:number }[]; servicos: string[]; desconto: number; forma: string;
   servicosDetalhes?: { id?:number; nome:string; natureza:string; valor:number }[];
   frete?: number;
+  valorLocacao?: number; valorServicos?: number; valorTotal?: number; validade?: string; emitidoEm?: string;
   versoes: { id?:number; v: number; valor: number; quando: string; nota: string; ativa?: boolean }[];
   contrato?: string; linha: { q: string; t: string; d: string; a: string }[];
 }

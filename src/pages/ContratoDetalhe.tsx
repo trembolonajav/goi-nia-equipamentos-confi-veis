@@ -131,10 +131,12 @@ export default function ContratoDetalhe() {
             <div className="stack" style={{ gap: 8, marginTop: 12, fontSize: 14 }}>
               <L r="Locação" v={brl.format(ct.locacao)} />
               <L r="Serviços" v={ct.servicos ? brl.format(ct.servicos) : "—"} />
+              {ct.frete > 0 && <L r="Frete" v={brl.format(ct.frete)} />}
+              {(ct.desconto || 0) > 0 && <L r="Desconto" v={`− ${brl.format(ct.desconto || 0)}`} />}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingTop: 10, marginTop: 10, borderTop: "1px solid var(--border)" }}>
               <span style={{ fontWeight: 600 }}>Total do contrato</span>
-              <span className="num" style={{ fontSize: 26, color: ct.pagamento === "Vencido" ? "var(--red)" : "var(--orange)" }}>{brl.format(ct.locacao + ct.servicos)}</span>
+              <span className="num" style={{ fontSize: 26, color: ct.pagamento === "Vencido" ? "var(--red)" : "var(--orange)" }}>{brl.format(ct.total ?? (ct.locacao + ct.servicos + ct.frete - (ct.desconto || 0)))}</span>
             </div>
           </div>
           <div className="card">

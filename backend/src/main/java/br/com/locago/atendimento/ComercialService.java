@@ -97,6 +97,11 @@ public class ComercialService {
       .param("o",o.get("id")).query(String.class).optional().orElse(null);
     if(contrato!=null)p.put("contrato",contrato);
     p.put("linha",List.of(Map.of("q","agora","t","Orçamento v"+v.get("numero_versao"),"d","Versão persistida e imutável","a","Sistema")));
+    p.put("valorLocacao",v.get("valor_locacao"));
+    p.put("valorServicos",v.get("valor_servicos"));
+    p.put("valorTotal",v.get("valor_total"));
+    p.put("validade",v.get("validade"));
+    p.put("emitidoEm",v.get("enviado_em"));
     return p;
   }
 
@@ -168,7 +173,7 @@ public class ComercialService {
     BigDecimal frete=decimal(body.getOrDefault("frete",0)),desconto=decimal(body.getOrDefault("desconto",0));
     BigDecimal total=locacao.add(servicos).add(frete).subtract(desconto);
     if(total.signum()<0)throw erro(HttpStatus.BAD_REQUEST,"Desconto maior que o orçamento");
-    jdbc.sql("update orcamento_versao set valor_locacao=:l,valor_servicos=:s,valor_total=:t where id=:id").param("l",locacao).param("s",servicos.add(frete)).param("t",total).param("id",id).update();
+    jdbc.sql("update orcamento_versao set valor_locacao=:l,valor_servicos=:s,valor_total=:t where id=:id").param("l",locacao).param("s",servicos).param("t",total).param("id",id).update();
     return id;
   }
 
@@ -213,10 +218,10 @@ public class ComercialService {
   }
 
   private Map<String,Object> pedidoSnapshot(String numero,Map<String,Object> o,Map<String,Object> v,List<Map<String,Object>> itens){
-    LinkedHashMap<String,Object> p=new LinkedHashMap<>();p.put("num",numero);p.put("clienteId",o.get("cliente_id"));p.put("obra",obraNome(v.get("obra_snapshot")));p.put("entrega",v.get("entrega"));p.put("inicio",String.valueOf(v.get("periodo_inicio")));p.put("fim",String.valueOf(v.get("periodo_fim")));p.put("status","Aprovado");p.put("forma",v.get("forma_pagamento"));p.put("frete",v.get("frete"));p.put("desconto",v.get("desconto"));p.put("itens",itens.stream().map(i->Map.of("id",i.get("id"),"prod",i.get("produto_id"),"qtd",i.get("quantidade"),"nome",i.get("descricao_snapshot"),"valor",i.get("valor_total"))).toList());p.put("servicos",List.of());p.put("versoes",List.of(Map.of("id",v.get("id"),"v",v.get("numero_versao"),"valor",v.get("valor_total"),"quando","agora","nota","Versão aprovada","ativa",true)));p.put("criado","agora");p.put("autor","Sistema");p.put("linha",List.of());return p;
+    LinkedHashMap<String,Object> p=new LinkedHashMap<>();p.put("num",numero);p.put("clienteId",o.get("cliente_id"));p.put("obra",obraNome(v.get("obra_snapshot")));p.put("entrega",v.get("entrega"));p.put("inicio",String.valueOf(v.get("periodo_inicio")));p.put("fim",String.valueOf(v.get("periodo_fim")));p.put("status","Aprovado");p.put("forma",v.get("forma_pagamento"));p.put("frete",v.get("frete"));p.put("desconto",v.get("desconto"));p.put("valorLocacao",v.get("valor_locacao"));p.put("valorServicos",v.get("valor_servicos"));p.put("valorTotal",v.get("valor_total"));p.put("validade",v.get("validade"));p.put("itens",itens.stream().map(i->Map.of("id",i.get("id"),"prod",i.get("produto_id"),"qtd",i.get("quantidade"),"nome",i.get("descricao_snapshot"),"valor",i.get("valor_total"),"valorUnitario",i.get("valor_unitario"),"tipoPreco",i.get("tipo_preco"))).toList());p.put("servicos",List.of());p.put("versoes",List.of(Map.of("id",v.get("id"),"v",v.get("numero_versao"),"valor",v.get("valor_total"),"quando","agora","nota","Versão aprovada","ativa",true)));p.put("criado","agora");p.put("autor","Sistema");p.put("linha",List.of());return p;
   }
   private Map<String,Object> contratoSnapshot(String numero,String pedido,Map<String,Object> o,Map<String,Object> v,List<Map<String,Object>> itens){
-    LinkedHashMap<String,Object> c=new LinkedHashMap<>();c.put("numero",numero);c.put("pedido",pedido);c.put("clienteId",o.get("cliente_id"));c.put("inicio",String.valueOf(v.get("periodo_inicio")));c.put("fim",String.valueOf(v.get("periodo_fim")));c.put("situacao","Aguardando pagamento");c.put("pagamento","Pendente");c.put("local",obraNome(v.get("obra_snapshot")).isBlank()?"Retirada na loja":obraNome(v.get("obra_snapshot")));c.put("endereco",obraEndereco(v.get("obra_snapshot")));c.put("frete",v.get("frete"));c.put("servicos",v.get("valor_servicos"));c.put("locacao",v.get("valor_locacao"));c.put("itens",itens.stream().map(i->Map.of("itemId",i.get("id"),"prod",i.get("produto_id"),"qtd",i.get("quantidade"),"nome",i.get("descricao_snapshot"),"patrimonio","a definir na expedição","estado","Reservado","valor",i.get("valor_total"))).toList());c.put("memoria",List.of());c.put("linha",List.of(Map.of("q","agora","t","Contrato "+numero+" gerado","d","Snapshot da versão comercial "+v.get("numero_versao"),"a","Sistema")));c.put("docs",List.of());return c;
+    LinkedHashMap<String,Object> c=new LinkedHashMap<>();c.put("numero",numero);c.put("pedido",pedido);c.put("clienteId",o.get("cliente_id"));c.put("inicio",String.valueOf(v.get("periodo_inicio")));c.put("fim",String.valueOf(v.get("periodo_fim")));c.put("situacao","Aguardando pagamento");c.put("pagamento","Pendente");c.put("local",obraNome(v.get("obra_snapshot")).isBlank()?"Retirada na loja":obraNome(v.get("obra_snapshot")));c.put("endereco",obraEndereco(v.get("obra_snapshot")));c.put("frete",v.get("frete"));c.put("servicos",v.get("valor_servicos"));c.put("locacao",v.get("valor_locacao"));c.put("desconto",v.get("desconto"));c.put("total",v.get("valor_total"));c.put("itens",itens.stream().map(i->Map.of("itemId",i.get("id"),"prod",i.get("produto_id"),"qtd",i.get("quantidade"),"nome",i.get("descricao_snapshot"),"patrimonio","a definir na expedição","estado","Reservado","valor",i.get("valor_total"))).toList());c.put("memoria",List.of());c.put("linha",List.of(Map.of("q","agora","t","Contrato "+numero+" gerado","d","Snapshot da versão comercial "+v.get("numero_versao"),"a","Sistema")));c.put("docs",List.of());return c;
   }
   private Map<String,Object> orcamento(String numero,boolean lock){return primeiraLinha(jdbc.sql("select id,numero,cliente_id,status,versao_atual,versao_aprovada_id from orcamento where numero=:n"+(lock?" for update":"")).param("n",numero).query().listOfRows(),"Orçamento não encontrado");}
   private Map<String,Object> obraSnapshot(Map<String,Object> cliente,String nome){for(Map<String,Object> o:lista(cliente.get("obras")))if(nome.equals(String.valueOf(o.get("nome"))))return new LinkedHashMap<>(o);return nome.isBlank()?Map.of():Map.of("nome",nome);}

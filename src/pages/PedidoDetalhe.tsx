@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../data/store";
 import { EXTRAS, STATUS_PEDIDO } from "../data/mock";
 import { Tag, Thumb, useToast } from "../components/ui";
-import { brl, dias as diasEntre, melhorPreco, periodoCurto } from "../lib/calc";
+import { brl, periodoCurto } from "../lib/calc";
 
 export default function PedidoDetalhe() {
   const { num } = useParams();
@@ -13,16 +13,13 @@ export default function PedidoDetalhe() {
   const p = getPedido(num!);
   if (!p) return <main className="page"><div className="empty">Pedido não encontrado.</div></main>;
   const cli = getCliente(p.clienteId);
-  const d = diasEntre(p.inicio, p.fim);
-
   const linhas = p.itens.map((i) => {
-    const prod = getProduto(i.prod)!;
-    const r = melhorPreco(prod, d);
-    return { nome: prod.nome, qtd: i.qtd, img: prod.img, modalidade: Object.keys(r.uso).map((k) => r.uso[k] + " × " + k).join(" + "), valor: r.v * i.qtd };
+    const prod = getProduto(i.prod);
+    return { nome: i.nome || prod?.nome || i.prod, qtd: i.qtd, img: prod?.img || "", modalidade: i.tipoPreco || "Preço congelado", valor: Number(i.valor || 0) };
   });
-  const bruto = linhas.reduce((a, l) => a + l.valor, 0);
-  const serv = p.servicosDetalhes?.reduce((a,e)=>a+Number(e.valor),0) ?? p.servicos.reduce((a, n) => a + (EXTRAS.find((e) => e.nome === n)?.valor || 0), 0);
-  const total = bruto + serv + (p.frete||0) - p.desconto;
+  const bruto = Number(p.valorLocacao ?? linhas.reduce((a, l) => a + l.valor, 0));
+  const serv = Number(p.valorServicos ?? (p.servicosDetalhes?.reduce((a,e)=>a+Number(e.valor),0) ?? 0));
+  const total = Number(p.valorTotal ?? (bruto + serv + (p.frete||0) - p.desconto));
   const podeAprovar = ["Orçamento enviado", "Aguardando aprovação"].indexOf(p.status) >= 0;
 
   async function aprovar() {

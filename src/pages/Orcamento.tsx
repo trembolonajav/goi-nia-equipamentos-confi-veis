@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../data/store";
 import { EXTRAS } from "../data/mock";
-import { brl, dias as diasEntre, melhorPreco } from "../lib/calc";
+import { brl, dias as diasEntre } from "../lib/calc";
 import logoDocumento from "../assets/locago-logo-documentos.png";
 
 const WHATSAPP = "(62) 98146-9409";
@@ -10,10 +10,10 @@ export default function Orcamento(){
   const {num}=useParams();const nav=useNavigate();const{getPedido,getCliente,getProduto}=useStore();const p=getPedido(num!);
   if(!p)return <main className="page"><div className="empty">Orçamento não encontrado.</div></main>;
   const cliente=getCliente(p.clienteId),dias=diasEntre(p.inicio,p.fim);
-  const itens=p.itens.map(i=>{const produto=getProduto(i.prod)!;const preco=melhorPreco(produto,dias);return{nome:produto.nome,qtd:i.qtd,periodo:"Diária",periodos:dias,unit:preco.v/dias,total:preco.v*i.qtd}});
+  const itens=p.itens.map(i=>{const produto=getProduto(i.prod);const total=Number(i.valor||0);return{nome:i.nome||produto?.nome||i.prod,qtd:i.qtd,periodo:i.tipoPreco||"Preço congelado",periodos:dias,unit:Number(i.valorUnitario??(total/Math.max(1,i.qtd))),total}});
   const servicos=p.servicosDetalhes ?? (p.servicos.map(nome=>EXTRAS.find(e=>e.nome===nome)).filter(Boolean) as typeof EXTRAS);
-  const locacao=itens.reduce((a,i)=>a+i.total,0),serv=servicos.reduce((a,s)=>a+Number(s.valor),0),total=locacao+serv+(p.frete||0)-p.desconto;
-  const emissao=new Date(),validade=new Date(emissao);validade.setDate(validade.getDate()+3);
+  const locacao=Number(p.valorLocacao??itens.reduce((a,i)=>a+i.total,0)),serv=Number(p.valorServicos??servicos.reduce((a,s)=>a+Number(s.valor),0)),total=Number(p.valorTotal??(locacao+serv+(p.frete||0)-p.desconto));
+  const emissao=p.emitidoEm?new Date(p.emitidoEm):new Date(),validade=p.validade?new Date(`${p.validade}T12:00:00`):new Date(emissao);if(!p.validade)validade.setDate(validade.getDate()+3);
   const codigo=`ORC-${p.num.replace(/\D/g,"").slice(-6).padStart(6,"0")}`;
   const data=(d:Date)=>d.toLocaleDateString("pt-BR");
   return <main className="page budget-page"><div className="budget-toolbar"><button className="btn btn-ghost" onClick={()=>nav(`/app/pedidos/${p.num}`)}>← Voltar ao pedido</button><button className="btn btn-primary" onClick={()=>window.print()}>Imprimir / Salvar em PDF</button></div>

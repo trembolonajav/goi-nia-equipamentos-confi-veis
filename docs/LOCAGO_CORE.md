@@ -140,9 +140,12 @@ ORCAMENTO
 - Uma versão enviada é imutável. Qualquer renegociação cria uma nova versão e preserva a anterior.
 - Somente uma versão com estado `ENVIADA` pode ser aprovada.
 - A aprovação é idempotente por `orcamento_versao_id` e executada em uma única transação.
+- Novos pedidos e contratos somente podem ser criados a partir da aprovação de uma versão persistida; os caminhos legados de gravação direta permanecem fechados.
 - O backend carrega produtos, serviços, preços e snapshots persistidos; o frontend envia somente os identificadores e quantidades selecionados.
 - Antes de materializar o pedido, o backend valida itens e disponibilidade. Qualquer falha desfaz pedido, contrato, reservas e cobrança.
 - `pedido_item` referencia o item exato da versão aprovada; `contrato_item` referencia o item exato do pedido.
 - A mesma cadeia existe para serviços em `pedido_servico` e `contrato_servico`.
 - Descrição, marca, modelo, natureza e valores são snapshots históricos e não acompanham alterações futuras dos cadastros.
+- Telas e documentos históricos leem exclusivamente os snapshots persistidos e nunca recalculam preços pelo cadastro atual do produto ou serviço.
+- Os componentes comerciais são armazenados separadamente e obedecem à equação `valor_total = valor_locacao + valor_servicos + frete - desconto`.
 - Os JSONs antigos permanecem apenas como projeção de compatibilidade para telas e registros anteriores; não são a fonte comercial dos novos fluxos.

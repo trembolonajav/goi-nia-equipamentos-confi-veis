@@ -13,7 +13,6 @@ import java.util.Map;
 @RestController @RequestMapping("/api/atendimento")
 public class AtendimentoController {
   private final DocumentoRepository repository;
-  private final AprovacaoService aprovacao;
   private final OperacaoContratoService operacao;
   private final ManutencaoService manutencao;
   private final LogisticaService logistica;
@@ -25,7 +24,7 @@ public class AtendimentoController {
   private final ProdutoCatalogoService produtos;
   private final ComposicaoService composicoes;
   private final ComercialService comercial;
-  public AtendimentoController(DocumentoRepository repository, AprovacaoService aprovacao, OperacaoContratoService operacao, ManutencaoService manutencao, LogisticaService logistica,FinanceiroService financeiro,ClienteValidator clienteValidator,DocumentoClienteService documentos,ServicoCatalogoService servicos,DocumentoContratoService documentosContrato,EventoOperacionalService eventos,ProdutoCatalogoService produtos,ComposicaoService composicoes,ComercialService comercial) { this.repository = repository; this.aprovacao = aprovacao; this.operacao = operacao; this.manutencao = manutencao; this.logistica = logistica;this.financeiro=financeiro;this.clienteValidator=clienteValidator;this.documentos=documentos;this.servicos=servicos;this.documentosContrato=documentosContrato;this.eventos=eventos;this.produtos=produtos;this.composicoes=composicoes;this.comercial=comercial; }
+  public AtendimentoController(DocumentoRepository repository, OperacaoContratoService operacao, ManutencaoService manutencao, LogisticaService logistica,FinanceiroService financeiro,ClienteValidator clienteValidator,DocumentoClienteService documentos,ServicoCatalogoService servicos,DocumentoContratoService documentosContrato,EventoOperacionalService eventos,ProdutoCatalogoService produtos,ComposicaoService composicoes,ComercialService comercial) { this.repository = repository; this.operacao = operacao; this.manutencao = manutencao; this.logistica = logistica;this.financeiro=financeiro;this.clienteValidator=clienteValidator;this.documentos=documentos;this.servicos=servicos;this.documentosContrato=documentosContrato;this.eventos=eventos;this.produtos=produtos;this.composicoes=composicoes;this.comercial=comercial; }
   @GetMapping("/clientes") public List<Map<String,Object>> clientes() { return repository.clientes(); }
   @PostMapping("/clientes") @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> criarCliente(@RequestBody @NotEmpty Map<String,Object> cliente) { clienteValidator.validar(cliente); return repository.salvarCliente(cliente); }
   @GetMapping("/clientes/{id}/documentos") public List<Map<String,Object>> documentos(@PathVariable String id){return documentos.listar(id);}
@@ -33,8 +32,6 @@ public class AtendimentoController {
   @GetMapping("/documentos/{id}/arquivo") public ResponseEntity<org.springframework.core.io.Resource> visualizar(@PathVariable long id,@RequestParam(defaultValue="false") boolean download){var d=documentos.baixar(id);String modo=download?"attachment":"inline";return ResponseEntity.ok().contentType(MediaType.parseMediaType(d.mime())).header(HttpHeaders.CONTENT_DISPOSITION,modo+"; filename=\""+d.nome().replace("\"","")+"\"").body(d.resource());}
   @DeleteMapping("/documentos/{id}") @ResponseStatus(HttpStatus.NO_CONTENT) public void excluirDocumento(@PathVariable long id){documentos.excluir(id);}
   @GetMapping("/pedidos") public List<Map<String,Object>> pedidos() { return comercial.listarComoPedidos(); }
-  @PostMapping("/pedidos") @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> criarPedido(@RequestBody @NotEmpty Map<String,Object> pedido) { return repository.salvarPedido(pedido); }
-  @PostMapping("/pedidos/{numero}/aprovar") public Map<String,Object> aprovar(@PathVariable String numero, @RequestBody @NotEmpty Map<String,Object> documentos) { return aprovacao.aprovar(numero, documentos); }
   @PostMapping("/orcamentos") @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> criarOrcamento(@RequestBody @NotEmpty Map<String,Object> body){return comercial.criar(body);}
   @PostMapping("/orcamentos/{numero}/versoes") @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> novaVersaoOrcamento(@PathVariable String numero,@RequestBody @NotEmpty Map<String,Object> body){return comercial.novaVersao(numero,body);}
   @PostMapping("/orcamentos/{numero}/versoes/{versaoId}/enviar") public Map<String,Object> enviarOrcamento(@PathVariable String numero,@PathVariable long versaoId){return comercial.enviar(numero,versaoId);}
