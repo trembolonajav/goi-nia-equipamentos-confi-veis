@@ -21,6 +21,9 @@ services:
       DB_USER: locago
       DB_PASSWORD: locago_dev
       LOCAGO_UPLOAD_DIR: /data/clientes
+      LOCAGO_ADMIN_LOGIN: ${LOCAGO_ADMIN_LOGIN:-}
+      LOCAGO_ADMIN_PASSWORD: ${LOCAGO_ADMIN_PASSWORD:-}
+      LOCAGO_ADMIN_NAME: ${LOCAGO_ADMIN_NAME:-Administrador LOCAGO}
     ports:
       - "8081:8080"
     depends_on:

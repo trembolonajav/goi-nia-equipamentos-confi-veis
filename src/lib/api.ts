@@ -20,8 +20,14 @@ export interface DashboardApi{entregasPendentes:number;devolucoesPrevistas:numbe
 
 const API = import.meta.env.VITE_API_URL || "/api";
 
+function cookie(nome:string){return document.cookie.split("; ").find(c=>c.startsWith(nome+"="))?.slice(nome.length+1);}
+async function csrf(){let token=cookie("XSRF-TOKEN");if(!token){const r=await fetch(`${API}/auth/csrf`,{credentials:"include"});if(!r.ok)throw new Error("Não foi possível iniciar a sessão segura.");token=(await r.json() as {token:string}).token;}return decodeURIComponent(token);}
+async function securityHeaders(method:string):Promise<Record<string,string>>{return ["GET","HEAD","OPTIONS"].includes(method.toUpperCase())?{}:{"X-XSRF-TOKEN":await csrf()};}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API}${path}`, { headers: { "Content-Type": "application/json", ...init?.headers }, ...init });
+  const method=init?.method||"GET";
+  const headers=new Headers(init?.headers);headers.set("Content-Type","application/json");for(const[k,v]of Object.entries(await securityHeaders(method)))headers.set(k,v);
+  const response = await fetch(`${API}${path}`, { ...init,credentials:"include",headers });
   if (!response.ok) throw new Error(await mensagemErro(response));
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -67,7 +73,7 @@ export const atendimentoApi = {
   baixarLancamentoFinanceiro:(id:number,dados:Record<string,unknown>)=>request<LancamentoFinanceiroApi>(`/atendimento/financeiro/lancamentos/${id}/baixar`,{method:"POST",body:JSON.stringify(dados)}),
   cancelarLancamentoFinanceiro:(id:number)=>request<LancamentoFinanceiroApi>(`/atendimento/financeiro/lancamentos/${id}/cancelar`,{method:"POST"}),
   documentosCliente: (id:string) => request<DocumentoClienteApi[]>(`/atendimento/clientes/${id}/documentos`),
-  anexarDocumento: async (id:string,tipo:string,arquivo:File) => { const form=new FormData();form.append("tipo",tipo);form.append("arquivo",arquivo);const response=await fetch(`${API}/atendimento/clientes/${id}/documentos`,{method:"POST",body:form});if(!response.ok)throw new Error(await mensagemErro(response));return response.json() as Promise<DocumentoClienteApi>; },
+  anexarDocumento: async (id:string,tipo:string,arquivo:File) => { const form=new FormData();form.append("tipo",tipo);form.append("arquivo",arquivo);const response=await fetch(`${API}/atendimento/clientes/${id}/documentos`,{method:"POST",credentials:"include",headers:await securityHeaders("POST"),body:form});if(!response.ok)throw new Error(await mensagemErro(response));return response.json() as Promise<DocumentoClienteApi>; },
   urlDocumento: (id:number) => `${API}/atendimento/documentos/${id}/arquivo`,
   urlDownloadDocumento: (id:number) => `${API}/atendimento/documentos/${id}/arquivo?download=true`,
   excluirDocumento: (id:number) => request<void>(`/atendimento/documentos/${id}`,{method:"DELETE"}),
@@ -91,8 +97,22 @@ export const atendimentoApi = {
   composicoes:()=>request<ComposicaoApi[]>("/atendimento/composicoes"),
   salvarComposicao:(c:Partial<ComposicaoApi>)=>request<ComposicaoApi>("/atendimento/composicoes",{method:"POST",body:JSON.stringify(c)}),
   documentosContrato: (numero:string) => request<DocumentoClienteApi[]>(`/atendimento/contratos/${numero}/documentos`),
-  anexarDocumentoContrato: async(numero:string,tipo:string,arquivo:File) => {const form=new FormData();form.append("tipo",tipo);form.append("arquivo",arquivo);const response=await fetch(`${API}/atendimento/contratos/${numero}/documentos`,{method:"POST",body:form});if(!response.ok)throw new Error(await mensagemErro(response));return response.json() as Promise<DocumentoClienteApi>},
+  anexarDocumentoContrato: async(numero:string,tipo:string,arquivo:File) => {const form=new FormData();form.append("tipo",tipo);form.append("arquivo",arquivo);const response=await fetch(`${API}/atendimento/contratos/${numero}/documentos`,{method:"POST",credentials:"include",headers:await securityHeaders("POST"),body:form});if(!response.ok)throw new Error(await mensagemErro(response));return response.json() as Promise<DocumentoClienteApi>},
   urlDocumentoContrato: (id:number) => `${API}/atendimento/contratos/documentos/${id}/arquivo`,
   urlDownloadDocumentoContrato: (id:number) => `${API}/atendimento/contratos/documentos/${id}/arquivo?download=true`,
   excluirDocumentoContrato: (id:number) => request<void>(`/atendimento/contratos/documentos/${id}`,{method:"DELETE"}),
+};
+
+export interface UsuarioSessao{id:number;login:string;nome:string;papel:"ADMIN"|"OPERADOR"}
+export interface UsuarioAdmin extends UsuarioSessao{ativo:boolean;ultimo_login_em?:string|null;criado_em:string}
+export const authApi={
+  me:()=>request<UsuarioSessao>("/auth/me"),
+  login:(login:string,senha:string)=>request<UsuarioSessao>("/auth/login",{method:"POST",body:JSON.stringify({login,senha})}),
+  logout:()=>request<void>("/auth/logout",{method:"POST"}),
+};
+export const adminApi={
+  usuarios:()=>request<UsuarioAdmin[]>("/admin/usuarios"),
+  criarUsuario:(dados:{login:string;nome:string;senha:string;papel:"ADMIN"|"OPERADOR"})=>request<UsuarioAdmin>("/admin/usuarios",{method:"POST",body:JSON.stringify(dados)}),
+  editarUsuario:(id:number,dados:{nome:string;papel:"ADMIN"|"OPERADOR";ativo:boolean})=>request<UsuarioAdmin>(`/admin/usuarios/${id}`,{method:"PUT",body:JSON.stringify(dados)}),
+  alterarSenha:(id:number,senha:string)=>request<void>(`/admin/usuarios/${id}/senha`,{method:"POST",body:JSON.stringify({senha})}),
 };

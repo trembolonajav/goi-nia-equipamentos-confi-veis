@@ -36,6 +36,7 @@ import Receber from "./pages/Receber";
 import Financeiro from "./pages/Financeiro";
 import Lancamentos from "./pages/Lancamentos";
 import EmBreve from "./pages/EmBreve";
+import Usuarios from "./pages/Usuarios";
 // site
 import SiteLayout from "./site/SiteLayout";
 import Home from "./site/Home";
@@ -44,11 +45,13 @@ import SiteProduto from "./site/SiteProduto";
 import Duvidas from "./site/Duvidas";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user,carregando } = useAuth();
   const loc = useLocation();
+  if(carregando)return <main className="page"><div className="empty">Validando sessão...</div></main>;
   if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
   return <>{children}</>;
 }
+function RequireAdmin({children}:{children:React.ReactNode}){const{user}=useAuth();return user?.papel==="ADMIN"?<>{children}</>:<Navigate to="/app" replace/>}
 
 export default function App() {
   return (
@@ -107,6 +110,7 @@ export default function App() {
                 <Route path="precos" element={<EmBreve titulo="Preços e modalidades" />} />
                 <Route path="modelos" element={<EmBreve titulo="Modelos de documentos" />} />
                 <Route path="servicos" element={<Servicos />} />
+                <Route path="usuarios" element={<RequireAdmin><Usuarios /></RequireAdmin>} />
               </Route>
 
               <Route path="*" element={<Navigate to="/site" replace />} />

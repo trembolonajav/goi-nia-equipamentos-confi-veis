@@ -88,12 +88,15 @@ Além dos testes automatizados, mudanças de domínio devem ser validadas em ban
 - `/app/produtos`, `/app/patrimonios`, `/app/calendario` — equipamentos.
 - `/app/financeiro`, `/app/fluxo-caixa`, `/app/cobrancas`, `/app/contas-pagar` — financeiro.
 
-## Acesso local de demonstração
+## Primeiro acesso seguro
 
-| Usuário | Senha | Papel |
-|---|---|---|
-| `admin` | `locago` | administrador |
-| `balcao` | `locago` | atendente de balcão |
+O primeiro administrador só é criado quando o banco ainda não possui usuários e as variáveis `LOCAGO_ADMIN_LOGIN`, `LOCAGO_ADMIN_PASSWORD` e, opcionalmente, `LOCAGO_ADMIN_NAME` são fornecidas ao backend. Nenhuma senha padrão fica no código, migration ou imagem.
+
+```bash
+LOCAGO_ADMIN_LOGIN=admin LOCAGO_ADMIN_PASSWORD='uma-senha-forte' docker compose up -d --build
+```
+
+Após a criação, remova as credenciais do ambiente. A autenticação usa sessão HTTP; senhas são armazenadas somente como hash.
 
 ## Estado do projeto
 
@@ -102,3 +105,5 @@ Além dos testes automatizados, mudanças de domínio devem ser validadas em ban
 **Marco 2 — Normalização Comercial:** orçamento e suas versões são persistidos; versões enviadas são imutáveis; a aprovação usa o identificador explícito da versão e materializa, em uma única transação, pedido, contrato, itens, serviços, reservas e cobrança. Novos pedidos e contratos só podem nascer de uma versão persistida e aprovada. Documentos históricos usam os snapshots gravados, mesmo que o catálogo seja alterado posteriormente.
 
 **LOCAGO Core — Marco 4 Experiência Operacional: CLOSED.** O Dashboard é uma lista de trabalho baseada exclusivamente na API, com pendências operacionais, resumo financeiro realizado, navegação contextual e estados explícitos de indisponibilidade.
+
+**LOCAGO Core — Marco 5 Segurança Essencial: CLOSED.** Autenticação no backend por sessão HTTP, proteção CSRF, senhas com hash, papéis ADMIN/OPERADOR, administração de usuários e auditoria transversal de mutações.

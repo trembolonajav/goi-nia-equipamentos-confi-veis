@@ -125,6 +125,17 @@ Não existe `periodo_cobranca` separado nesta fase; período inicial/final perte
 
 Cada etapa inclui migração compatível, API, tela funcional e teste do fluxo principal.
 
+## Marco 5 — segurança essencial
+
+- A API operacional exige sessão HTTP autenticada; a sessão do navegador fica em cookie HttpOnly.
+- Requisições mutáveis exigem token CSRF no padrão `XSRF-TOKEN` / `X-XSRF-TOKEN`.
+- Senhas são hashes unidirecionais produzidos por `PasswordEncoder` e nunca são retornadas pela API.
+- O primeiro ADMIN nasce exclusivamente das variáveis `LOCAGO_ADMIN_LOGIN`, `LOCAGO_ADMIN_PASSWORD` e `LOCAGO_ADMIN_NAME` em banco sem usuários.
+- Os papéis atuais são somente `ADMIN` e `OPERADOR`.
+- OPERADOR executa atendimento, locação, equipamentos, manutenção e recebimentos. Administração de usuários, estornos, lançamentos administrativos, contas a pagar e configurações mutáveis exigem ADMIN no backend.
+- Toda mutação autenticada gera `auditoria_evento` com usuário, papel, rota, método, status, data e IP.
+- Esconder ações na interface é conveniência; autorização é sempre aplicada pela API.
+
 ## Marco 2 — normalização comercial
 
 ```text

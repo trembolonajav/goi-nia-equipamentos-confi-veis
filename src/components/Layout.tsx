@@ -13,7 +13,7 @@ function grupoDaRota(pathname: string): string | null {
   if (["/app/contratos", "/app/expedicoes", "/app/devolucoes", "/app/trocas", "/app/ocorrencias"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Locações";
   if (["/app/produtos", "/app/patrimonios", "/app/disponibilidade", "/app/manutencoes"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Equipamentos";
   if (["/app/financeiro", "/app/lancamentos", "/app/receber"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Financeiro";
-  if (["/app/precos", "/app/modelos", "/app/servicos"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Configurações";
+  if (["/app/precos", "/app/modelos", "/app/servicos", "/app/usuarios"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Configurações";
   return null;
 }
 
@@ -61,14 +61,15 @@ export default function Layout() {
     ] },
     { grupo: "Financeiro", itens: [
       { to: "/app/financeiro", label: "Painel financeiro" },
-      { to: "/app/lancamentos", label: "Fluxo de caixa" },
+      ...(user?.papel === "ADMIN" ? [{ to: "/app/lancamentos", label: "Fluxo de caixa" }] : []),
       { to: "/app/receber", label: "Cobranças" },
     ] },
-    { grupo: "Configurações", itens: [
+    ...(user?.papel === "ADMIN" ? [{ grupo: "Configurações", itens: [
       { to: "/app/servicos", label: "Serviços e mercadorias" },
       { to: "/app/precos", label: "Preços e modalidades" },
       { to: "/app/modelos", label: "Modelos de documentos" },
-    ] },
+      { to: "/app/usuarios", label: "Usuários" },
+    ] }] : []),
   ];
 
   useEffect(() => {
@@ -137,10 +138,10 @@ export default function Layout() {
           <div style={{ flex: 1 }} className="hide-mobile" />
           <div style={{ textAlign: "right", lineHeight: 1.2 }} className="hide-mobile">
             <div style={{ fontFamily: "var(--head)", fontWeight: 700, fontSize: 17 }}>{new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "short", year: "numeric" }).format(new Date())}</div>
-            <div style={{ fontSize: 11, color: "var(--muted-2)" }}>{user?.nome} · {user?.papel}</div>
+            <div style={{ fontSize: 11, color: "var(--muted-2)" }}>{user?.nome} · {user?.papel === "ADMIN" ? "Administrador" : "Operador"}</div>
           </div>
           <a href="/site" className="btn btn-ghost btn-sm" style={{ textDecoration: "none" }}>Ver site</a>
-          <button className="btn btn-ghost btn-sm" onClick={() => { logout(); nav("/login"); }}>Sair</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => { void logout().then(()=>nav("/login")); }}>Sair</button>
           <button className="btn btn-primary" onClick={() => nav("/app/nova-locacao")}>Nova locação</button>
         </header>
         <Outlet />

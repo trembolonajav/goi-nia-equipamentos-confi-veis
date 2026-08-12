@@ -7,13 +7,14 @@ export default function Login() {
   const { login } = useAuth();
   const nav = useNavigate();
   const loc = useLocation() as { state?: { from?: string } };
-  const [usuario, setUsuario] = useState("admin");
-  const [senha, setSenha] = useState("locago");
+  const [usuario, setUsuario] = useState("");
+  const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
+  const [entrando,setEntrando]=useState(false);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const r = login(usuario, senha);
+    setEntrando(true);setErro("");const r = await login(usuario, senha);setEntrando(false);
     if (!r.ok) {
       setErro(r.erro || "Falha no login.");
       return;
@@ -57,18 +58,11 @@ export default function Login() {
               </div>
             )}
 
-            <button className="btn btn-primary btn-block" type="submit" style={{ minHeight: 48 }}>
-              Entrar no sistema
+            <button className="btn btn-primary btn-block" type="submit" disabled={entrando} style={{ minHeight: 48 }}>
+              {entrando?"Entrando...":"Entrar no sistema"}
             </button>
           </div>
 
-          <div className="card-tight" style={{ marginTop: 20, padding: "12px 14px", background: "var(--card)" }}>
-            <div className="uplabel" style={{ marginBottom: 6 }}>Acessos de teste</div>
-            <div className="muted" style={{ fontSize: 13 }}>
-              <strong style={{ color: "var(--text)" }}>admin</strong> / locago — administrador<br />
-              <strong style={{ color: "var(--text)" }}>balcao</strong> / locago — atendente
-            </div>
-          </div>
         </form>
       </div>
     </div>
