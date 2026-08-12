@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: locago
+      POSTGRES_USER: locago
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
+    volumes:
+      - locago_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U locago -d locago"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/locago
+      DB_USER: locago
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
+      LOCAGO_UPLOAD_DIR: /data/clientes
+      LOCAGO_ADMIN_LOGIN: ${LOCAGO_ADMIN_LOGIN:-}
+      LOCAGO_ADMIN_PASSWORD: ${LOCAGO_ADMIN_PASSWORD:-}
+      LOCAGO_ADMIN_NAME: ${LOCAGO_ADMIN_NAME:-Administrador LOCAGO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - locago_uploads:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  locago_postgres:
+  locago_uploads:
