@@ -76,6 +76,7 @@ public class AtendimentoController {
   @PostMapping("/ocorrencias") @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> criarOcorrencia(@RequestBody Map<String,Object> body){return eventos.criar("OCORRENCIA",body);}
   @PostMapping("/ocorrencias/{id}/concluir") public Map<String,Object> concluirOcorrencia(@PathVariable long id){return eventos.concluir(id);}
   @GetMapping("/produtos") public List<Map<String,Object>> produtos(){return produtos.listar();}
+  @GetMapping("/produtos/disponibilidade") public Map<String,Integer> disponibilidadeProdutos(@RequestParam java.time.LocalDate inicio,@RequestParam java.time.LocalDate fim){return produtos.disponibilidade(inicio,fim);}
   @GetMapping("/produtos/{id}") public Map<String,Object> produto(@PathVariable String id){return produtos.buscar(id);}
   @PostMapping("/produtos") @ResponseStatus(HttpStatus.CREATED) public Map<String,Object> salvarProduto(@RequestBody Map<String,Object> body){return produtos.salvar(body);}
   @PutMapping("/produtos/{id}") public Map<String,Object> atualizarProduto(@PathVariable String id,@RequestBody Map<String,Object> body){return produtos.atualizar(id,body);}

@@ -1,6 +1,10 @@
-import type { Cliente, Contrato, Pedido, Produto, Patrimonio } from "../data/mock";
+import type { Cliente, Contrato, Pedido, Patrimonio, Produto as ProdutoBase } from "../data/mock";
 
-export type ProdutoApi = Produto;
+export interface PrecoProdutoApi {duracaoDias:number;nome:string;valor:number}
+export type ProdutoApi = ProdutoBase & {precos?:PrecoProdutoApi[]};
+export type Produto = ProdutoApi;
+export interface ConteudoPublico{resumo?:string;indicadoPara?:string[];naoIndicado?:string;inclui?:string[];cuidados?:string[];observacaoTecnica?:string;fonte?:string}
+export interface EquipamentoPublico {id:string;slug:string;nome:string;categoria:string;marca:string;modelo:string;descricao:string;aplicacao:string;imagemUrl:string;especificacoes:string|Record<string,string>;conteudoPublico:string|ConteudoPublico;disponiveis:number;precos:PrecoProdutoApi[]}
 
 export interface ManutencaoApi { id: number; patrimonio: string; produto: string; contrato: string; motivo: string; status: "ABERTA" | "CONCLUIDA"; criadoEm: string; concluidoEm: string | null; }
 export interface PatrimonioApi{codigo:string;produtoId:string;produto:string;serie:string;estado:string;local?:string|null;marca?:string;modelo?:string;dataAquisicao?:string|null;valorAquisicao?:number|null;observacao?:string|null}
@@ -86,6 +90,7 @@ export const atendimentoApi = {
   criarOcorrencia:(dados:Partial<EventoOperacionalApi>)=>request<EventoOperacionalApi>("/atendimento/ocorrencias",{method:"POST",body:JSON.stringify(dados)}),
   concluirOcorrencia:(id:number)=>request<EventoOperacionalApi>(`/atendimento/ocorrencias/${id}/concluir`,{method:"POST"}),
   produtos:()=>request<Produto[]>("/atendimento/produtos"),
+  disponibilidadeProdutos:(inicio:string,fim:string)=>request<Record<string,number>>(`/atendimento/produtos/disponibilidade?inicio=${inicio}&fim=${fim}`),
   produto:(id:string)=>request<Produto>(`/atendimento/produtos/${id}`),
   salvarProduto:(produto:Partial<Produto>)=>request<Produto>("/atendimento/produtos",{method:"POST",body:JSON.stringify(produto)}),
   atualizarProduto:(id:string,produto:Partial<Produto>)=>request<Produto>(`/atendimento/produtos/${id}`,{method:"PUT",body:JSON.stringify(produto)}),
@@ -101,6 +106,10 @@ export const atendimentoApi = {
   urlDocumentoContrato: (id:number) => `${API}/atendimento/contratos/documentos/${id}/arquivo`,
   urlDownloadDocumentoContrato: (id:number) => `${API}/atendimento/contratos/documentos/${id}/arquivo?download=true`,
   excluirDocumentoContrato: (id:number) => request<void>(`/atendimento/contratos/documentos/${id}`,{method:"DELETE"}),
+};
+export const publicApi={
+  catalogo:()=>request<EquipamentoPublico[]>("/public/catalogo"),
+  equipamento:(slug:string)=>request<EquipamentoPublico>(`/public/catalogo/${encodeURIComponent(slug)}`)
 };
 
 export interface UsuarioSessao{id:number;login:string;nome:string;papel:"ADMIN"|"OPERADOR"}

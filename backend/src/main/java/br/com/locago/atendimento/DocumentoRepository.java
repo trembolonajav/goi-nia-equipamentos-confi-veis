@@ -60,7 +60,26 @@ public class DocumentoRepository {
   }
 
   public List<Map<String, Object>> pedidos() { return listar("pedido_atendimento", "criado_em"); }
-  public List<Map<String, Object>> contratos() { return listar("contrato_atendimento", "criado_em"); }
+  public List<Map<String, Object>> contratos() {
+    List<Map<String, Object>> contratos = listar("contrato_atendimento", "criado_em");
+    for (Map<String, Object> contrato : contratos) {
+      String numero = texto(contrato, "numero");
+      if (numero.isBlank()) continue;
+      Map<String, Object> financeiro = jdbc.sql("""
+        select count(*) total,
+               count(*) filter (where status='PAGA') pagas,
+               count(*) filter (where status='PARCIAL') parciais,
+               count(*) filter (where status<>'PAGA' and vencimento<current_date) vencidas
+          from cobranca_atendimento where contrato_numero=:numero and cancelada_em is null
+        """).param("numero", numero).query().singleRow();
+      int total = ((Number) financeiro.get("total")).intValue();
+      int pagas = ((Number) financeiro.get("pagas")).intValue();
+      int parciais = ((Number) financeiro.get("parciais")).intValue();
+      int vencidas = ((Number) financeiro.get("vencidas")).intValue();
+      if (total > 0) contrato.put("pagamento", pagas == total ? "Pago" : vencidas > 0 ? "Vencido" : parciais > 0 ? "Parcial" : "Pendente");
+    }
+    return contratos;
+  }
 
   @Transactional
   public Map<String, Object> criarCliente(Map<String, Object> documento) {

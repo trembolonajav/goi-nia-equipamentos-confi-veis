@@ -1,109 +1,115 @@
-# LOCAGO — Sistema de locação de equipamentos
+# Projeto LOCAGO
 
-Sistema público e operacional da **LOCAGO — Aluguel de Equipamentos**, em Goiânia/GO. O projeto reúne o site de divulgação e um sistema interno persistente para atendimento, contratos, movimentação individual dos equipamentos, manutenção, cobrança e financeiro.
+Plataforma de locação de equipamentos composta pelo site público da LOCAGO e por um sistema interno para atendimento, estoque, contratos, logística, manutenção e financeiro.
 
-## Stack
+## Funcionalidades
+
+- Catálogo público com fichas técnicas, preços por período e atendimento via WhatsApp.
+- Clientes PF/PJ, obras, documentos e histórico cadastral.
+- Orçamentos versionados, aprovação e geração transacional de contratos.
+- Produtos, categorias e patrimônios físicos identificados individualmente.
+- Disponibilidade por período e tabela de diária, 3 dias, semana, quinzena e mês.
+- Expedição, entrega, devolução e inspeção parcial por patrimônio.
+- Manutenções corretivas, preventivas, limpeza e revisão.
+- Cobranças, recebimentos, contas a pagar, caixa e estornos auditáveis.
+- Dashboard operacional alimentado exclusivamente pela API.
+- Autenticação por sessão HTTP, CSRF, papéis `ADMIN` e `OPERADOR` e auditoria.
+- Templates de orçamento, contrato, entrega e devolução para impressão/PDF.
+
+## Tecnologias
 
 - Frontend: React 19, TypeScript e Vite.
-- Backend: Java 17, Spring Boot 3 e JDBC.
-- Banco: PostgreSQL com migrations Flyway.
-- Infraestrutura local: Docker Compose e volume persistente para documentos.
+- Backend: Java 17, Spring Boot 3, Spring Security e JDBC.
+- Banco: PostgreSQL 17 e Flyway.
+- Ambiente local: Docker Compose.
 
-O PostgreSQL é a fonte de verdade dos módulos já integrados. Dados de compatibilidade visual ainda existentes no frontend não substituem a persistência do Core.
+## Arquitetura de pastas
+
+```text
+projeto-locago/
+├── backend/                       API Spring Boot
+│   ├── src/main/java/             domínio, serviços, segurança e controllers
+│   ├── src/main/resources/        configuração e migrations Flyway
+│   └── src/test/                  testes automatizados
+├── docs/                          decisões e especificação do LOCAGO Core
+├── public/equipamentos/           imagens públicas do catálogo
+├── src/                           aplicação React
+│   ├── auth/                      sessão e tela de acesso
+│   ├── components/                layout e componentes compartilhados
+│   ├── data/                      store e tipos de compatibilidade
+│   ├── lib/                       API, cálculo de preços e utilitários
+│   ├── pages/                     sistema operacional interno
+│   └── site/                      site e catálogo públicos
+├── compose.yml                    PostgreSQL e backend local
+└── package.json                   scripts e dependências do frontend
+```
+
+O PostgreSQL é a fonte de verdade. Dados operacionais não possuem fallback fictício quando a API está indisponível.
 
 ## Executar localmente
 
 Pré-requisitos: Docker Desktop, Node.js e npm.
 
 ```bash
-docker compose -f compose.yml up -d --build
 npm install
+docker compose up -d --build
 npm run dev
 ```
 
-- Site e sistema: `http://localhost:5173`
-- API: `http://localhost:8081/api/atendimento`
-- Saúde da API: `http://localhost:8081/actuator/health`
-- PostgreSQL: `localhost:5433` — banco e usuário `locago`
+Serviços:
 
-Para acompanhar os serviços:
+- Aplicação: `http://localhost:5173`
+- API: `http://localhost:8081/api`
+- Saúde: `http://localhost:8081/actuator/health`
+- PostgreSQL: `localhost:5433`
 
-```bash
-docker compose -f compose.yml ps
-docker compose -f compose.yml logs -f backend
+## Primeiro administrador
+
+O administrador inicial só é criado em um banco sem usuários. Informe as credenciais por variáveis de ambiente; nenhuma senha padrão é versionada.
+
+PowerShell:
+
+```powershell
+$env:LOCAGO_ADMIN_LOGIN="admin"
+$env:LOCAGO_ADMIN_PASSWORD="uma-senha-forte"
+$env:LOCAGO_ADMIN_NAME="Administrador LOCAGO"
+docker compose up -d --build
 ```
 
-## Fluxos implementados
-
-- Clientes PF/PJ com validações, endereço estruturado, busca por CEP e documentos.
-- Produtos, categorias, patrimônios individuais, composições, disponibilidade e calendário.
-- Atendimento, orçamento, pedido, aprovação e geração de contrato.
-- Operação parcial por item e patrimônio: saída, entrega, devolução, inspeção e manutenção.
-- Comprovante assinado próprio para cada movimento de entrega parcial.
-- Histórico imutável de movimentações dos patrimônios.
-- Cobranças com recebimentos parciais, conta financeira de destino e estorno por reversão.
-- Contas a pagar separadas do caixa; a saída financeira nasce somente na liquidação.
-- Visão financeira cujo saldo, entradas e saídas vêm de lançamentos realizados; valores a receber e a pagar vêm das respectivas obrigações.
-- Trocas, ocorrências, agenda logística e documentos operacionais.
-
-O Core atual não utiliza caução. NFS-e, gateways de pagamento e automações externas estão fora desta fundação.
-
-## Regras centrais
-
-- `contrato_item` representa a linha comercial contratada.
-- `contrato_item_patrimonio` associa as unidades físicas que cumprem essa linha.
-- Um patrimônio não pode estar ligado simultaneamente a dois itens ativos.
-- Expedição, entrega, devolução e inspeção são transacionais e podem ser parciais.
-- O contrato só encerra quando todos os itens terminarem ou forem cancelados.
-- Recebimentos e pagamentos só alteram caixa por lançamentos vinculados a uma conta financeira.
-- Estornos preservam o evento original e criam uma reversão auditável.
-
-A especificação completa está em [`docs/LOCAGO_CORE.md`](docs/LOCAGO_CORE.md).
-
-## Banco e migrations
-
-As migrations ficam em `backend/src/main/resources/db/migration` e são aplicadas automaticamente pelo Flyway. A sequência atual vai de **V1 a V24**. V20/V21 normalizam orçamento, versões, itens, serviços e a rastreabilidade até pedido e contrato. V22 reforça a imutabilidade comercial; V23 normaliza clientes, produtos e patrimônios; V24 entrega o endurecimento final dos identificadores e das localizações cadastrais.
-
-Não edite migration já publicada. Toda evolução compatível deve entrar em uma nova versão.
+Depois da criação, remova as credenciais do ambiente.
 
 ## Validação
 
 ```bash
+npm run build
 cd backend
 mvn test
-cd ..
-npm run build
 ```
 
-Além dos testes automatizados, mudanças de domínio devem ser validadas em banco novo e em banco existente. O cenário crítico do Core é: contrato com múltiplos patrimônios, expedição parcial, entrega parcial com comprovante próprio, devolução individual, inspeção individual e preservação do estado dos demais itens.
+## Regras importantes
 
-## Rotas principais
+- Não edite migrations já publicadas; crie uma nova versão.
+- `contrato_item` representa a linha comercial.
+- `contrato_item_patrimonio` vincula as unidades físicas utilizadas.
+- Movimentações operacionais são parciais, transacionais e auditáveis.
+- Recebimentos e pagamentos alteram o caixa apenas por lançamentos vinculados.
+- Estornos preservam o evento original e criam uma reversão.
+- O Core não utiliza caução.
 
-- `/site` — site público.
-- `/login` — acesso ao sistema interno.
-- `/app` — início do sistema interno.
-- `/app/nova-locacao` — atendimento e orçamento.
-- `/app/contratos` — contratos e operação.
-- `/app/expedicoes` — saídas e entregas pendentes.
-- `/app/produtos`, `/app/patrimonios`, `/app/calendario` — equipamentos.
-- `/app/financeiro`, `/app/fluxo-caixa`, `/app/cobrancas`, `/app/contas-pagar` — financeiro.
+## Documentação
 
-## Primeiro acesso seguro
+A especificação funcional e o roadmap estão em [`docs/LOCAGO_CORE.md`](docs/LOCAGO_CORE.md).
 
-O primeiro administrador só é criado quando o banco ainda não possui usuários e as variáveis `LOCAGO_ADMIN_LOGIN`, `LOCAGO_ADMIN_PASSWORD` e, opcionalmente, `LOCAGO_ADMIN_NAME` são fornecidas ao backend. Nenhuma senha padrão fica no código, migration ou imagem.
+## Estado
 
-```bash
-LOCAGO_ADMIN_LOGIN=admin LOCAGO_ADMIN_PASSWORD='uma-senha-forte' docker compose up -d --build
-```
+**LOCAGO Core V1 operacional**
 
-Após a criação, remova as credenciais do ambiente. A autenticação usa sessão HTTP; senhas são armazenadas somente como hash.
+- Foundation V1: concluída.
+- Marco 2 — Comercial: concluído.
+- Marco 3/3.1 — Cadastros operacionais: concluído.
+- Marco 4 — Experiência operacional: concluído.
+- Marco 5 — Segurança essencial: concluído.
 
-## Estado do projeto
+## Licença
 
-**LOCAGO Core Foundation V1 — CLOSED.**
-
-**Marco 2 — Normalização Comercial:** orçamento e suas versões são persistidos; versões enviadas são imutáveis; a aprovação usa o identificador explícito da versão e materializa, em uma única transação, pedido, contrato, itens, serviços, reservas e cobrança. Novos pedidos e contratos só podem nascer de uma versão persistida e aprovada. Documentos históricos usam os snapshots gravados, mesmo que o catálogo seja alterado posteriormente.
-
-**LOCAGO Core — Marco 4 Experiência Operacional: CLOSED.** O Dashboard é uma lista de trabalho baseada exclusivamente na API, com pendências operacionais, resumo financeiro realizado, navegação contextual e estados explícitos de indisponibilidade.
-
-**LOCAGO Core — Marco 5 Segurança Essencial: CLOSED.** Autenticação no backend por sessão HTTP, proteção CSRF, senhas com hash, papéis ADMIN/OPERADOR, administração de usuários e auditoria transversal de mutações.
+Projeto privado da LOCAGO. Uso e distribuição dependem de autorização do proprietário.

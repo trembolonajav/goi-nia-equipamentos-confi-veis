@@ -1,4 +1,5 @@
-import { PRODUTOS, PATRIMONIOS, COMPROMISSOS, CLIENTES, type Produto } from "../data/mock";
+import { PRODUTOS, PATRIMONIOS, COMPROMISSOS, CLIENTES } from "../data/mock";
+import type { Produto } from "./api";
 
 export const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -18,19 +19,23 @@ export interface MelhorPreco { v: number; uso: Record<string, number>; }
 
 /** Melhor combinação de tabela (mensal/quinzenal/semanal/diária) para minimizar o valor. */
 export function melhorPreco(p: Produto, d: number): MelhorPreco {
-  const tab: [number, number, string][] = [[30, p.mensal, "mensal"], [15, p.quinzenal, "quinzenal"], [7, p.semanal, "semanal"], [1, p.diaria, "diária"]];
+  const tab: [number, number, string][] = p.precos?.length
+    ? p.precos.map(x => [x.duracaoDias, Number(x.valor), x.nome])
+    : [[30, p.mensal, "mensal"], [15, p.quinzenal, "quinzenal"], [7, p.semanal, "semanal"], [1, p.diaria, "diária"]];
   const memo: Record<number, MelhorPreco> = {};
   const f = (n: number): MelhorPreco => {
     if (n <= 0) return { v: 0, uso: {} };
     if (memo[n]) return memo[n];
     let best: MelhorPreco | null = null;
     for (const [len, preco, nome] of tab) {
+      if (!(preco > 0)) continue;
       const r = f(Math.max(0, n - len));
       const v = r.v + preco;
       if (!best || v < best.v) { const uso = { ...r.uso }; uso[nome] = (uso[nome] || 0) + 1; best = { v, uso }; }
     }
-    memo[n] = best!;
-    return best!;
+    if (!best) throw new Error("Equipamento sem tabela de preço válida.");
+    memo[n] = best;
+    return best;
   };
   return f(d);
 }

@@ -11,7 +11,7 @@ const NIVEL = { bloqueio: { cor: "var(--red)", marca: "×" }, autorizacao: { cor
 type Nivel = keyof typeof NIVEL;
 
 export default function NovaLocacao() {
-  const { clientes, produtos, getCliente, criarPedido, aprovarPedido, atualizarCliente } = useStore();
+  const { clientes, produtos, cadastrosErro, getCliente, criarPedido, aprovarPedido, atualizarCliente } = useStore();
   const { toast } = useToast();
   const nav = useNavigate();
   const [params] = useSearchParams();
@@ -27,11 +27,13 @@ export default function NovaLocacao() {
   const [carrinho, setCarrinho] = useState<Record<string, number>>(() => { const pid = params.get("produto"); return pid ? { [pid]: 1 } : {}; });
   const [extrasSel, setExtrasSel] = useState<boolean[]>([]);
   const [servicosCatalogo,setServicosCatalogo]=useState<ServicoApi[]>([]);
+  const [disponibilidade,setDisponibilidade]=useState<Record<string,number>>({});
   const [novaObra,setNovaObra]=useState(false);
   const [obraForm,setObraForm]=useState({nome:"",endereco:"",restricao:"",frete:""});
   const [forma, setForma] = useState("Pix");
   const [feito, setFeito] = useState<{ tipo: "orcamento" | "contrato"; num: string } | null>(null);
   useEffect(()=>{void atendimentoApi.servicos().then(s=>{const ativos=s.filter(x=>x.ativo);setServicosCatalogo(ativos);setExtrasSel(ativos.map(()=>false))}).catch(()=>{})},[]);
+  useEffect(()=>{void atendimentoApi.disponibilidadeProdutos(inicio,fim).then(setDisponibilidade).catch(()=>setDisponibilidade({}))},[inicio,fim]);
 
   const cli = getCliente(clienteId);
   const obras = cli?.obras || [];
@@ -64,10 +66,10 @@ export default function NovaLocacao() {
     }
     if (!itens.length) add("bloqueio", "Sem equipamentos", "O contrato precisa de pelo menos um item.", "Adicione equipamentos na etapa 4.");
     else {
-      const semEstoque = itens.filter((i) => i.qtd > Number(i.produto.unidades || 0));
+      const semEstoque = itens.filter((i) => i.qtd > Number(disponibilidade[i.produto.id] ?? 0));
       if (semEstoque.length) add("bloqueio", "Quantidade acima da disponibilidade", semEstoque.map((i) => i.produto.nome).join(", "), "Reduza a quantidade ou mude as datas.");
       else {
-        const apertado = itens.filter((i) => Number(i.produto.unidades || 0) - i.qtd === 0);
+        const apertado = itens.filter((i) => Number(disponibilidade[i.produto.id] ?? 0) - i.qtd === 0);
         if (apertado.length) add("aviso", "Última unidade disponível", apertado.map((i) => i.produto.nome).join(", ") + " esgota no período.", "Nenhuma folga para troca em caso de defeito.");
         else add("ok", "Disponibilidade no período", itens.length + " item(ns) confirmados para " + d + " dias.");
       }
@@ -77,7 +79,7 @@ export default function NovaLocacao() {
       else if (obraSel) add("ok", "Endereço de entrega", obraSel.nome + " · " + obraSel.endereco);
     } else add("ok", "Endereço de entrega", "Retirada no balcão, com conferência de documento.");
     return v;
-  }, [cli, itens, entrega, obras, obraSel, inicio, fim, d]);
+  }, [cli, itens, entrega, obras, obraSel, inicio, fim, d, disponibilidade]);
 
   const temBloqueio = val.some((x) => x.nivel === "bloqueio");
 
@@ -90,7 +92,9 @@ export default function NovaLocacao() {
   async function cadastrarObra(){
     if(!cli)return;
     if(obraForm.nome.trim().length<3||obraForm.endereco.trim().length<10)return toast("Informe o nome e o endereço completo da obra.");
-    const obra={nome:obraForm.nome.trim(),endereco:obraForm.endereco.trim(),restricao:obraForm.restricao.trim()||"Sem restrições informadas",frete:Math.max(0,Number(obraForm.frete.replace(",","."))||0),equipamentos:""};
+    const freteInformado=valorMonetario(obraForm.frete);
+    if(freteInformado>10000)return toast("Confira o frete informado. Use, por exemplo, 86,00.");
+    const obra={nome:obraForm.nome.trim(),endereco:obraForm.endereco.trim(),restricao:obraForm.restricao.trim()||"Sem restrições de acesso",frete:freteInformado,equipamentos:""};
     await atualizarCliente({...cli,obras:[...cli.obras,obra]});
     setObraIdx(cli.obras.length);setObraForm({nome:"",endereco:"",restricao:"",frete:""});setNovaObra(false);toast("Obra cadastrada na ficha do cliente.");
   }
@@ -162,13 +166,13 @@ export default function NovaLocacao() {
                 <div className="stack" style={{ gap: 8, marginTop: 14 }}>
                   {obras.length === 0 && <div className="empty">Este cliente não tem obra cadastrada.</div>}
                   {obras.map((o, i) => (
-                    <button key={i} className="card-tight" style={{ display: "flex", justifyContent: "space-between", cursor: "pointer", borderColor: obraIdx === i ? "var(--orange)" : undefined, textAlign: "left" }} onClick={() => setObraIdx(i)}>
-                      <span><span style={{ display: "block", fontWeight: 600 }}>{o.nome}</span><span style={{ display: "block", fontSize: 13, color: "var(--muted)" }}>{o.endereco}</span><span style={{ display: "block", fontSize: 12, color: "var(--muted-2)" }}>{o.restricao}</span></span>
+                    <button key={i} className={`card-tight work-choice${obraIdx===i?" selected":""}`} style={{ display: "flex", justifyContent: "space-between", cursor: "pointer", textAlign: "left" }} onClick={() => setObraIdx(i)}>
+                      <span><span style={{ display: "block", fontWeight: 600 }}>{o.nome}</span><span style={{ display: "block", fontSize: 13, color: "var(--muted)" }}>{o.endereco}</span><span className="work-access">Acesso: {o.restricao}</span></span>
                       <span className="num" style={{ fontSize: 17, whiteSpace: "nowrap" }}>{brl.format(o.frete)}</span>
                     </button>
                   ))}
                   {!novaObra&&<button className="btn btn-outline btn-block" onClick={()=>setNovaObra(true)}>+ Cadastrar nova obra</button>}
-                  {novaObra&&<div className="card-tight work-form"><h3 className="h2">Nova obra</h3><div className="grid"><label className="field"><span>Nome da obra</span><input className="input" value={obraForm.nome} onChange={e=>setObraForm(f=>({...f,nome:e.target.value}))}/></label><label className="field"><span>Endereço completo</span><input className="input" value={obraForm.endereco} onChange={e=>setObraForm(f=>({...f,endereco:e.target.value}))}/></label><label className="field"><span>Restrição de acesso</span><input className="input" value={obraForm.restricao} onChange={e=>setObraForm(f=>({...f,restricao:e.target.value}))}/></label><label className="field"><span>Frete previsto (R$)</span><input className="input" inputMode="decimal" value={obraForm.frete} onChange={e=>setObraForm(f=>({...f,frete:e.target.value}))}/></label></div><div className="row" style={{gap:8,marginTop:12}}><button className="btn btn-primary btn-sm" onClick={cadastrarObra}>Salvar obra</button><button className="btn btn-ghost btn-sm" onClick={()=>setNovaObra(false)}>Cancelar</button></div></div>}
+                  {novaObra&&<div className="card-tight work-form"><h3 className="h2">Nova obra</h3><div className="grid"><label className="field"><span>Nome da obra</span><input className="input" placeholder="Ex.: Residência Marcos" value={obraForm.nome} onChange={e=>setObraForm(f=>({...f,nome:e.target.value}))}/></label><label className="field"><span>Endereço completo</span><input className="input" placeholder="Rua, número, bairro e cidade" value={obraForm.endereco} onChange={e=>setObraForm(f=>({...f,endereco:e.target.value}))}/></label><label className="field"><span>Condições para acessar o local <em>(opcional)</em></span><input className="input" placeholder="Ex.: portaria, rua estreita, escada ou horário permitido" value={obraForm.restricao} onChange={e=>setObraForm(f=>({...f,restricao:e.target.value}))}/><small>Informe algo que possa dificultar ou exigir agendamento da entrega.</small></label><label className="field"><span>Frete combinado — entrega e coleta (R$)</span><input className="input" inputMode="decimal" placeholder="Ex.: 86,00" value={obraForm.frete} onChange={e=>setObraForm(f=>({...f,frete:e.target.value}))}/><small>Valor total combinado para levar e buscar os equipamentos.</small></label></div><div className="row" style={{gap:8,marginTop:12}}><button className="btn btn-primary btn-sm" onClick={cadastrarObra}>Salvar obra</button><button className="btn btn-ghost btn-sm" onClick={()=>setNovaObra(false)}>Cancelar</button></div></div>}
                 </div>
               ) : <p className="muted" style={{ marginTop: 14 }}>Retirada no balcão, sem custo de frete. Documento conferido na saída, e só pessoa autorizada no cadastro pode retirar.</p>}
             </section>
@@ -191,8 +195,14 @@ export default function NovaLocacao() {
               <h2 className="h2" style={{ marginBottom: 4 }}>Equipamentos</h2>
               <p className="section-note">A disponibilidade considera o período escolhido, não a situação de hoje.</p>
               <div className="stack" style={{ gap: 8 }}>
+                {produtos.length === 0 && (
+                  <div className="empty">
+                    <strong>Nenhum equipamento foi carregado.</strong>
+                    <span>{cadastrosErro || "Atualize a página. Se continuar vazio, confira a conexão com o servidor."}</span>
+                  </div>
+                )}
                 {produtos.map((p) => {
-                  const disp = Math.max(0, Number(p.unidades || 0));
+                  const disp = Math.max(0, Number(disponibilidade[p.id] ?? 0));
                   const q = carrinho[p.id] || 0;
                   const r = melhorPreco(p, d);
                   return (
@@ -321,3 +331,10 @@ function Box({ r, v, cor }: { r: string; v: string; cor?: string }) {
   return <div className="card-tight"><div className="uplabel">{r}</div><div className="num" style={{ fontSize: 22, color: cor }}>{v}</div></div>;
 }
 function dataLocal(){const d=new Date();const off=d.getTimezoneOffset();return new Date(d.getTime()-off*60000).toISOString().slice(0,10)}
+function valorMonetario(valor:string){
+  const limpo=valor.trim().replace(/[^\d,.-]/g,"");
+  if(!limpo)return 0;
+  const normalizado=limpo.includes(",")?limpo.replace(/\./g,"").replace(",", "."):/^\d{1,3}(\.\d{3})+$/.test(limpo)?limpo.replace(/\./g,""):limpo;
+  const numero=Number(normalizado);
+  return Number.isFinite(numero)?Math.max(0,numero):0;
+}

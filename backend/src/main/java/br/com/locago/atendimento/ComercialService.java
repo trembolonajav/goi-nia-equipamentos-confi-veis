@@ -204,8 +204,17 @@ public class ComercialService {
   }
 
   private Preco melhorPreco(Map<String,Object> p,int dias){
-    BigDecimal[] valores={decimal(p.getOrDefault("mensal",0)),decimal(p.getOrDefault("quinzenal",0)),decimal(p.getOrDefault("semanal",0)),decimal(p.getOrDefault("diaria",0))};
-    int[] blocos={30,15,7,1}; String[] tipos={"MENSAL","QUINZENAL","SEMANAL","DIARIA"};
+    List<Map<String,Object>> tabela=jdbc.sql("select duracao_dias,nome,valor from produto_preco where produto_id=:id and ativo order by duracao_dias desc")
+      .param("id",p.get("id")).query().listOfRows();
+    BigDecimal[] valores; int[] blocos; String[] tipos;
+    if(tabela.isEmpty()){
+      valores=new BigDecimal[]{decimal(p.getOrDefault("mensal",0)),decimal(p.getOrDefault("quinzenal",0)),decimal(p.getOrDefault("semanal",0)),decimal(p.getOrDefault("diaria",0))};
+      blocos=new int[]{30,15,7,1};tipos=new String[]{"MENSAL","QUINZENAL","SEMANAL","DIARIA"};
+    }else{
+      valores=tabela.stream().map(x->decimal(x.get("valor"))).toArray(BigDecimal[]::new);
+      blocos=tabela.stream().mapToInt(x->numero(x.get("duracao_dias"))).toArray();
+      tipos=tabela.stream().map(x->String.valueOf(x.get("nome"))).toArray(String[]::new);
+    }
     BigDecimal[] dp=new BigDecimal[dias+31];String[] escolha=new String[dias+31];Arrays.fill(dp,null);dp[0]=BigDecimal.ZERO;
     for(int i=1;i<dp.length;i++)for(int j=0;j<blocos.length;j++){
       if(valores[j].signum()<=0) continue;

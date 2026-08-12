@@ -8,8 +8,9 @@ export default function Dashboard() {
   const nav = useNavigate();
   const [dados, setDados] = useState<DashboardApi | null>(null);
   const [erro, setErro] = useState("");
-  const carregar = () => { setErro(""); atendimentoApi.dashboard().then(setDados).catch(() => setErro("O resumo operacional está indisponível. Tente novamente.")); };
-  useEffect(() => { carregar(); }, []);
+  const [atualizadoEm,setAtualizadoEm]=useState<Date|null>(null);
+  const carregar = () => { setErro(""); atendimentoApi.dashboard().then(d=>{setDados(d);setAtualizadoEm(new Date())}).catch(() => setErro("O resumo operacional está indisponível. Tente novamente.")); };
+  useEffect(() => { carregar(); const atualizar=()=>{if(document.visibilityState==="visible")carregar()};window.addEventListener("focus",atualizar);document.addEventListener("visibilitychange",atualizar);const timer=window.setInterval(atualizar,30000);return()=>{window.removeEventListener("focus",atualizar);document.removeEventListener("visibilitychange",atualizar);window.clearInterval(timer)}; }, []);
 
   if (erro) return <main className="page"><h1 className="h1">Início</h1><div className="empty" style={{ color: "var(--red)", marginTop: 24 }}>{erro}<div style={{ marginTop: 12 }}><button className="btn btn-ghost" onClick={carregar}>Tentar novamente</button></div></div></main>;
   if (!dados) return <main className="page"><h1 className="h1">Início</h1><div className="empty" style={{ marginTop: 24 }}>Carregando dados reais da operação...</div></main>;
@@ -30,7 +31,7 @@ export default function Dashboard() {
   ] as const;
 
   return <main className="page">
-    <h1 className="h1">Início</h1><p className="lead">O que precisa de atenção agora, calculado pela operação real.</p>
+    <div className="dashboard-heading"><div><h1 className="h1">Início</h1><p className="lead">O que precisa de atenção agora, calculado pela operação real.</p></div><div className="dashboard-refresh"><small>{atualizadoEm?`Atualizado às ${atualizadoEm.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`:"Atualizando..."}</small><button className="btn btn-ghost btn-sm" onClick={carregar}>Atualizar agora</button></div></div>
     <h2 className="h2" style={{ marginTop: 28 }}>Atenção hoje</h2>
     <div className="kpi-grid" style={{ marginTop: 12, gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))" }}>{alertas.map(([valor,rotulo,to,cor])=><button key={rotulo} className="kpi" onClick={()=>nav(to)}><span className="kpi-value" style={{color:cor}}>{valor}</span><span className="kpi-label">{rotulo}</span></button>)}</div>
     <div className="dash-cols" style={{ marginTop: 32, display: "grid", gridTemplateColumns: "minmax(0,1.5fr) minmax(280px,1fr)", gap: 24, alignItems: "start" }}>

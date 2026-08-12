@@ -66,7 +66,6 @@ export default function Layout() {
     ] },
     ...(user?.papel === "ADMIN" ? [{ grupo: "Configurações", itens: [
       { to: "/app/servicos", label: "Serviços e mercadorias" },
-      { to: "/app/precos", label: "Preços e modalidades" },
       { to: "/app/modelos", label: "Modelos de documentos" },
       { to: "/app/usuarios", label: "Usuários" },
     ] }] : []),

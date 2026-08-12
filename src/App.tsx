@@ -35,7 +35,8 @@ import Obras from "./pages/Obras";
 import Receber from "./pages/Receber";
 import Financeiro from "./pages/Financeiro";
 import Lancamentos from "./pages/Lancamentos";
-import EmBreve from "./pages/EmBreve";
+import ModelosDocumentos from "./pages/ModelosDocumentos";
+import ModeloDocumento from "./pages/ModeloDocumento";
 import Usuarios from "./pages/Usuarios";
 // site
 import SiteLayout from "./site/SiteLayout";
@@ -107,8 +108,9 @@ export default function App() {
                 <Route path="financeiro" element={<Financeiro />} />
                 <Route path="lancamentos" element={<Lancamentos />} />
                 <Route path="caucoes" element={<Navigate to="/app/financeiro" replace />} />
-                <Route path="precos" element={<EmBreve titulo="Preços e modalidades" />} />
-                <Route path="modelos" element={<EmBreve titulo="Modelos de documentos" />} />
+                <Route path="precos" element={<Navigate to="/app/produtos" replace />} />
+                <Route path="modelos" element={<ModelosDocumentos />} />
+                <Route path="modelos/:tipo" element={<ModeloDocumento />} />
                 <Route path="servicos" element={<Servicos />} />
                 <Route path="usuarios" element={<RequireAdmin><Usuarios /></RequireAdmin>} />
               </Route>

@@ -72,7 +72,3 @@ export const FAQ = [
   { q: "Não sei qual equipamento preciso. Vocês orientam?", a: "Sim. Explique o serviço pelo WhatsApp e nossa equipe ajuda a escolher o equipamento adequado." },
   { q: "Posso estender o período da locação?", a: "Fale conosco antes do fim do prazo. A prorrogação depende da disponibilidade do equipamento." }
 ];
-
-export const CATEGORIAS = [...new Set(DADOS.map((e) => e.categoria))];
-export const SERVICOS = [...new Set(DADOS.map((e) => e.servico))];
-export const ENERGIAS = [...new Set(DADOS.map((e) => e.energia))];

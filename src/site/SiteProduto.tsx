@@ -1,23 +1,25 @@
-import { useNavigate, useParams } from "react-router-dom";
-import { DADOS } from "../data/catalogo";
-import { imgOf } from "../lib/images";
-import { openWhatsApp } from "../lib/whatsapp";
-
-export default function SiteProduto() {
-  const { slug } = useParams(); const nav = useNavigate(); const eq = DADOS.find(e => e.slug === slug);
-  if (!eq) return <main className="site-wrap" style={{ padding: 60 }}><div className="empty">Equipamento não encontrado.</div></main>;
-  const msg = `Olá! Tenho interesse em alugar o equipamento ${eq.nome} (${eq.marca} ${eq.modelo}). Gostaria de consultar valor, disponibilidade e condições de locação.`;
-  return <main className="site-wrap" style={{ padding: "40px 0 80px" }}>
-    <div className="row" style={{ gap: 8, fontSize: 13 }}><button className="link-back" onClick={() => nav("/site")}>Início</button><span>/</span><button className="link-back" onClick={() => nav("/site/catalogo")}>Catálogo</button><span>/</span><span className="muted">{eq.nome}</span></div>
-    <div className="site-cols-2" style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 40, alignItems: "start" }}>
-      <div><div style={{ aspectRatio: "4 / 3", border: "1px solid var(--border)", borderRadius: 16, background: `var(--card) center/cover no-repeat url(${imgOf(eq.img)})` }} />
-        <div style={{ marginTop: 32 }}><div className="uplabel">{eq.categoria}</div><h1 className="h1" style={{ fontSize: "clamp(2.25rem,4vw,3rem)", marginTop: 8 }}>{eq.nome}</h1><p style={{ color: "var(--orange)", fontWeight: 600 }}>{eq.marca} · {eq.modelo}</p><p className="muted" style={{ marginTop: 16, fontSize: 17 }}>{eq.descricao}</p></div>
-        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", marginTop: 24 }}>{eq.specs.map(s => <div key={s.label} className="card" style={{ padding: 16 }}><div className="uplabel">{s.label}</div><div style={{ fontFamily: "var(--head)", fontWeight: 600, fontSize: 19, marginTop: 4 }}>{s.valor}</div></div>)}</div>
-        <div className="site-cols-2" style={{ marginTop: 32, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}><List title="Requisitos no local" items={eq.requisitos} /><List title="Cuidados de uso" items={eq.cuidados} /></div>
-        <div className="card" style={{ marginTop: 24 }}><div className="uplabel" style={{ color: "var(--yellow)" }}>Não indicado para</div><p className="muted" style={{ margin: "8px 0 0" }}>{eq.naoIndicado}</p></div>
-      </div>
-      <aside className="card" style={{ position: "sticky", top: 96 }}><div className="uplabel" style={{ color: "var(--orange)" }}>Atendimento personalizado</div><h2 className="h2" style={{ marginTop: 8 }}>Consulte a locação</h2><p className="muted">Valores, disponibilidade, prazo, retirada ou entrega são confirmados diretamente com a equipe da LOCAGO.</p><div className="card-tight" style={{ margin: "20px 0" }}><div style={{ fontWeight: 600 }}>{eq.nome}</div><div className="muted" style={{ fontSize: 13 }}>{eq.marca} · {eq.modelo}</div></div><button className="btn btn-primary btn-block" style={{ minHeight: 52, fontSize: 16 }} onClick={() => openWhatsApp(msg)}>Consultar pelo WhatsApp</button><p className="muted" style={{ textAlign: "center", fontSize: 12, marginBottom: 0 }}>A mensagem já será aberta com este equipamento identificado.</p></aside>
-    </div>
-  </main>;
+import {useEffect,useState} from "react";
+import {useNavigate,useParams} from "react-router-dom";
+import {publicApi,type ConteudoPublico,type EquipamentoPublico} from "../lib/api";
+import {openWhatsApp} from "../lib/whatsapp";
+const brl=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
+function parse<T>(v:string|T):T{try{return typeof v==="string"?JSON.parse(v):v}catch{return {} as T}}
+export default function SiteProduto(){
+ const {slug=""}=useParams(),nav=useNavigate(),[eq,setEq]=useState<EquipamentoPublico|null>(null),[erro,setErro]=useState("");
+ useEffect(()=>{publicApi.equipamento(slug).then(setEq).catch(e=>setErro(e.message))},[slug]);
+ if(erro)return <main className="site-wrap" style={{padding:60}}><div className="empty">{erro}</div></main>;
+ if(!eq)return <main className="site-wrap" style={{padding:60}}><div className="empty">Carregando equipamento...</div></main>;
+ const specs=parse<Record<string,string>>(eq.especificacoes),c=parse<ConteudoPublico>(eq.conteudoPublico),msg=`Olá! Quero consultar a locação de ${eq.nome}${eq.modelo?` (${eq.modelo})`:""}. Pode confirmar disponibilidade e condições?`;
+ return <main className="site-wrap product-page" style={{padding:"34px 0 88px"}}>
+  <div className="row" style={{gap:8,fontSize:13}}><button className="link-back" onClick={()=>nav("/site")}>Início</button><span className="muted">/</span><button className="link-back" onClick={()=>nav("/site/catalogo")}>Catálogo</button><span className="muted">/ {eq.nome}</span></div>
+  <section className="product-hero-grid"><div><div className="product-photo"><img src={eq.imagemUrl} alt={eq.nome}/></div><div style={{marginTop:24}}><div className="uplabel" style={{color:"var(--orange)"}}>{eq.categoria}</div><h1 className="h1 product-title">{eq.nome}</h1><div className="row wrap" style={{gap:8}}>{eq.marca&&<span className="product-pill">{eq.marca}</span>}{eq.modelo&&<span className="product-pill">Modelo {eq.modelo}</span>}<span className="product-pill">Código {eq.id}</span></div><p className="lead product-summary">{c.resumo||eq.descricao}</p></div></div>
+   <aside className="product-rental-card"><div className="uplabel" style={{color:"var(--orange)"}}>Tabela de locação</div><h2 className="h2">Escolha o período</h2><p className="muted">Valores por unidade. A equipe confirma disponibilidade, datas, retirada ou entrega.</p><div className="price-stack">{eq.precos.map((p,i)=><div className={`price-row${i===0?" featured":""}`} key={p.duracaoDias}><div><strong>{p.nome}</strong><span>{p.duracaoDias} {p.duracaoDias===1?"dia":"dias"}</span></div><b>{brl.format(p.valor)}</b></div>)}</div><button className="btn btn-primary btn-block" onClick={()=>openWhatsApp(msg)}>Consultar este equipamento</button><p className="muted rental-note">Sem compromisso · atendimento direto pelo WhatsApp</p></aside>
+  </section>
+  <section className="product-section"><div><div className="uplabel">Aplicação</div><h2 className="site-h2">Para que este equipamento serve</h2><p className="lead">{eq.aplicacao}</p></div><CheckList title="Indicado para" items={c.indicadoPara||[]}/></section>
+  <section className="product-section specs-section"><div><div className="uplabel">Ficha técnica</div><h2 className="site-h2">Especificações confirmadas</h2><p className="muted">Dados identificados na unidade, no documento recebido ou na ficha oficial do fabricante.</p></div><div className="spec-grid">{Object.entries(specs).map(([k,v])=><div className="spec-card" key={k}><span>{k}</span><strong>{v}</strong></div>)}</div></section>
+  <section className="product-info-grid"><CheckList title="O que acompanha" items={c.inclui||[]}/><CheckList title="Cuidados de operação" items={c.cuidados||[]}/><div className="warning-card"><div className="uplabel">Atenção</div><h3>Limites de uso</h3><p>{c.naoIndicado||"Consulte a equipe para validar a aplicação."}</p></div></section>
+  {c.observacaoTecnica&&<div className="technical-note"><strong>Nota técnica do cadastro</strong><p>{c.observacaoTecnica}</p></div>}
+  <section className="product-cta"><div><div className="uplabel">Pronto para reservar?</div><h2 className="site-h2">Confirme o período com a LOCAGO</h2><p className="muted">Informe datas, endereço da obra e o serviço que será executado.</p></div><button className="btn btn-primary" onClick={()=>openWhatsApp(msg)}>Falar no WhatsApp</button></section>
+ </main>
 }
-function List({ title, items }: { title: string; items: string[] }) { return <div><h2 className="h2" style={{ fontSize: 22, marginBottom: 12 }}>{title}</h2><ul className="muted" style={{ paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6 }}>{items.map(x => <li key={x}>{x}</li>)}</ul></div>; }
+function CheckList({title,items}:{title:string;items:string[]}){return <div className="info-card"><h3>{title}</h3><ul>{items.map(x=><li key={x}><span>✓</span>{x}</li>)}</ul></div>}

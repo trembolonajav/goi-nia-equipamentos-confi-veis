@@ -30,6 +30,20 @@ public class ProdutoCatalogoService {
         rs.getBigDecimal("valor_semanal"), rs.getBigDecimal("valor_quinzenal"), rs.getBigDecimal("valor_mensal"), rs.getBoolean("ativo"))).list();
   }
 
+  public Map<String,Integer> disponibilidade(LocalDate inicio, LocalDate fim) {
+    if (fim.isBefore(inicio)) throw new IllegalArgumentException("O término não pode ser anterior ao início");
+    Map<String,Integer> resultado = new LinkedHashMap<>();
+    for (Map<String,Object> p : jdbc.sql("select id,capacidade from produto_atendimento order by id").query().listOfRows()) {
+      String id=String.valueOf(p.get("id")); int capacidade=((Number)p.get("capacidade")).intValue();
+      int reservada=jdbc.sql("select coalesce(sum(quantidade),0) from reserva_atendimento where produto_id=:id and status='ATIVA' and inicio<=:fim and fim>=:inicio")
+        .param("id",id).param("inicio",inicio).param("fim",fim).query(Integer.class).single();
+      int manutencao=jdbc.sql("select count(*) from patrimonio_atendimento where produto_id=:id and estado='MANUTENCAO'")
+        .param("id",id).query(Integer.class).single();
+      resultado.put(id,Math.max(0,capacidade-reservada-manutencao));
+    }
+    return resultado;
+  }
+
   public List<Map<String, Object>> categorias() {
     return jdbc.sql("select id,nome,prefixo from categoria_produto where ativo order by nome")
       .query((rs, row) -> Map.<String, Object>of("id", rs.getLong("id"), "nome", rs.getString("nome"), "prefixo", rs.getString("prefixo"))).list();
@@ -160,6 +174,7 @@ public class ProdutoCatalogoService {
       jdbc.sql("insert into produto_atendimento(id,nome,capacidade) values(:id,:nome,:qtd) on conflict(id) do update set nome=excluded.nome,capacidade=greatest(produto_atendimento.capacidade,excluded.capacidade)")
         .param("id", id).param("nome", nome).param("qtd", quantidade).update();
       criarPatrimonios(id, prefixo, quantidade);
+      sincronizarPrecos(id, produto);
       return buscar(id);
     } catch (IllegalArgumentException e) {
       throw e;
@@ -197,6 +212,7 @@ public class ProdutoCatalogoService {
         .param("diaria", diaria).param("semanal", semanal).param("quinzenal", quinzenal).param("mensal", mensal)
         .param("id", id).update();
       jdbc.sql("update produto_atendimento set nome=:nome where id=:id").param("nome", nome).param("id", id).update();
+      sincronizarPrecos(id, corpo);
       return buscar(id);
     } catch (IllegalArgumentException e) { throw e; }
     catch (Exception e) { throw new IllegalArgumentException("Já existe um produto com esse nome", e); }
@@ -211,6 +227,16 @@ public class ProdutoCatalogoService {
       String codigo = prefixo + "-" + String.format("%04d", ++sequencia);
       jdbc.sql("insert into patrimonio_atendimento(codigo,produto_id,serie,localizacao) values(:codigo,:produto,'A informar',null)")
         .param("codigo", codigo).param("produto", produtoId).update();
+    }
+  }
+
+  private void sincronizarPrecos(String produtoId, Map<String,Object> produto) {
+    Object[][] tabela = {{1,"Diária",numero(produto,"diaria")},{3,"3 dias",numero(produto,"tresDias")},{7,"Semana",numero(produto,"semanal")},{15,"Quinzena",numero(produto,"quinzenal")},{30,"Mês",numero(produto,"mensal")}};
+    for (Object[] faixa : tabela) {
+      int dias=(Integer)faixa[0]; BigDecimal valor=(BigDecimal)faixa[2];
+      if(valor.signum()>0) jdbc.sql("insert into produto_preco(produto_id,duracao_dias,nome,valor,ativo) values(:p,:d,:n,:v,true) on conflict(produto_id,duracao_dias) do update set nome=excluded.nome,valor=excluded.valor,ativo=true")
+        .param("p",produtoId).param("d",dias).param("n",faixa[1]).param("v",valor).update();
+      else jdbc.sql("update produto_preco set ativo=false where produto_id=:p and duracao_dias=:d").param("p",produtoId).param("d",dias).update();
     }
   }
 
@@ -242,6 +268,8 @@ public class ProdutoCatalogoService {
     int unidades = jdbc.sql("select count(*) from patrimonio_atendimento where produto_id=:id")
       .param("id", id).query(Integer.class).single();
     resultado.put("unidades", unidades);
+    resultado.put("precos", jdbc.sql("select duracao_dias \"duracaoDias\",nome,valor from produto_preco where produto_id=:id and ativo order by duracao_dias")
+      .param("id", id).query().listOfRows());
     return resultado;
   }
 

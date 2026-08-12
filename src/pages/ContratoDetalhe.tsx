@@ -5,6 +5,7 @@ import { PATRIMONIOS, COR_ESTADO } from "../data/mock";
 import { Tag, Thumb, useToast } from "../components/ui";
 import { brl, periodoCurto } from "../lib/calc";
 import { atendimentoApi,type ContratoItemOperacionalApi,type DocumentoClienteApi } from "../lib/api";
+import type { Contrato } from "../data/mock";
 const DOCUMENTOS_FLUXO=[
   {tipo:"Contrato assinado",titulo:"Contrato de locação",modelo:"documento",fase:"Contrato"},
   {tipo:"Comprovante de entrega assinado",titulo:"Comprovante de entrega / saída",modelo:"entrega",fase:"Expedição"},
@@ -21,10 +22,12 @@ export default function ContratoDetalhe() {
   const [visualizando,setVisualizando]=useState<DocumentoClienteApi|null>(null);
   const [modalAvaria,setModalAvaria]=useState(false),[motivoAvaria,setMotivoAvaria]=useState(""),[fotosAvaria,setFotosAvaria]=useState<File[]>([]),[salvandoAvaria,setSalvandoAvaria]=useState(false);
   const [itensOperacionais,setItensOperacionais]=useState<ContratoItemOperacionalApi[]>([]),[patrimoniosInspecao,setPatrimoniosInspecao]=useState<string[]>([]);
+  const [contratoAtualizado,setContratoAtualizado]=useState<Contrato|null>(null);
   useEffect(()=>{if(numero)void atendimentoApi.documentosContrato(numero).then(setDocumentosAssinados)},[numero]);
   useEffect(()=>{if(numero)void atendimentoApi.itensOperacionaisContrato(numero).then(setItensOperacionais).catch(()=>setItensOperacionais([]))},[numero]);
+  useEffect(()=>{if(numero)void atendimentoApi.contratos().then(lista=>setContratoAtualizado(lista.find(c=>c.numero===numero)||null)).catch(()=>{})},[numero]);
 
-  const ct = getContrato(numero!);
+  const ct = contratoAtualizado || getContrato(numero!);
   if (!ct) return <main className="page"><div className="empty">Contrato não encontrado.</div></main>;
   const cli = getCliente(ct.clienteId);
 

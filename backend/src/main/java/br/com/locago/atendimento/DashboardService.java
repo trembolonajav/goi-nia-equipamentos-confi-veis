@@ -36,7 +36,11 @@ public class DashboardService {
         "cobrancasVencendoHoje",r.getInt("vencendo_hoje"),"cobrancasVencidas",r.getInt("vencidas"),
         "aReceberHoje",r.getBigDecimal("receber_hoje"),"valorVencido",r.getBigDecimal("valor_vencido")
       )).single();
-    int manutencoes=jdbc.sql("select count(*) from manutencao_atendimento where status='ABERTA'").query(Integer.class).single();
+    int manutencoes=jdbc.sql("""
+      select count(*) from manutencao_atendimento m
+      join patrimonio_atendimento p on p.codigo=m.patrimonio_codigo
+      where m.status='ABERTA' and p.estado='MANUTENCAO'
+      """).query(Integer.class).single();
     BigDecimal pagarHoje=jdbc.sql("select coalesce(sum(saldo),0) from conta_pagar where cancelada_em is null and status<>'PAGA' and vencimento="+HOJE).query(BigDecimal.class).single();
     BigDecimal saldo=jdbc.sql("""
       select coalesce((select sum(saldo_inicial) from conta_financeira where ativo),0)+

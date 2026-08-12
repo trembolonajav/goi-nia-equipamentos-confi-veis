@@ -17,13 +17,14 @@ export default function ProdutoForm() {
   const [carregando, setCarregando] = useState(editando);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [tresDias, setTresDias] = useState(0);
   const [criandoCategoria, setCriandoCategoria] = useState(false);
   const [categoriaNome, setCategoriaNome] = useState("");
   const [categoriaPrefixo, setCategoriaPrefixo] = useState("");
 
   useEffect(() => {
     const requisicoes: Promise<unknown>[] = [atendimentoApi.categoriasProduto().then(setCategorias)];
-    if (id) requisicoes.push(atendimentoApi.produto(id).then(setP));
+    if (id) requisicoes.push(atendimentoApi.produto(id).then(produto => { setP(produto); setTresDias(Number(produto.precos?.find(x => x.duracaoDias === 3)?.valor || 0)); }));
     Promise.all(requisicoes)
       .catch(e => setErro(e instanceof Error ? e.message : "Não foi possível carregar o cadastro."))
       .finally(() => setCarregando(false));
@@ -48,9 +49,9 @@ export default function ProdutoForm() {
   async function salvar() {
     setErro("");
     if (!p.categoria || p.nome.trim().length < 3 || !p.marca?.trim() || !p.modelo?.trim()) return setErro("Informe categoria, nome, marca e modelo.");
-    if ([p.diaria,p.semanal,p.quinzenal,p.mensal].some(v => Number(v) < 0) || p.diaria <= 0) return setErro("Informe preços válidos; a diária deve ser maior que zero.");
+    if ([p.diaria,tresDias,p.semanal,p.quinzenal,p.mensal].some(v => Number(v) < 0) || p.diaria <= 0) return setErro("Informe preços válidos; a diária deve ser maior que zero.");
     setSalvando(true);
-    const dados = { nome:p.nome.trim(), marca:p.marca.trim(), modelo:p.modelo.trim(), descricao:p.descricao?.trim() || "", unidadeLocacao:p.unidadeLocacao || "UNIDADE", diaria:Number(p.diaria), semanal:Number(p.semanal), quinzenal:Number(p.quinzenal), mensal:Number(p.mensal), img:p.img };
+    const dados = { nome:p.nome.trim(), marca:p.marca.trim(), modelo:p.modelo.trim(), descricao:p.descricao?.trim() || "", unidadeLocacao:p.unidadeLocacao || "UNIDADE", diaria:Number(p.diaria), tresDias:Number(tresDias), semanal:Number(p.semanal), quinzenal:Number(p.quinzenal), mensal:Number(p.mensal), img:p.img };
     try {
       const salvo = editando && id
         ? await atendimentoApi.atualizarProduto(id, dados)
@@ -77,7 +78,7 @@ export default function ProdutoForm() {
         <label className="field"><span>Unidade de locação</span><select className="select" value={p.unidadeLocacao} onChange={e => campo("unidadeLocacao",e.target.value)}><option value="UNIDADE">Unidade</option><option value="TORRE">Torre</option><option value="CONJUNTO">Conjunto</option></select></label>
         <label className="field" style={{gridColumn:"1 / -1"}}><span>Descrição</span><textarea className="textarea" value={p.descricao} onChange={e => campo("descricao",e.target.value)} placeholder="Características e aplicação do equipamento"/></label>
       </div><div className="uplabel" style={{marginTop:16}}>Imagem ilustrativa</div><div className="product-image-picker">{IMAGENS.map(img => <button type="button" className={p.img===img ? "selected" : ""} key={img} onClick={() => campo("img",img)}><Thumb img={img} w={70} h={58}/><small>{img}</small></button>)}</div></section>
-      <section className="card"><h2 className="h2">Tabela de locação</h2><div className="grid product-price-grid">{([['diaria','Diária'],['semanal','Semanal'],['quinzenal','Quinzenal'],['mensal','Mensal']] as [keyof Produto,string][]).map(([k,n]) => <Money key={k} nome={n} valor={Number(p[k]||0)} set={v => campo(k,v)}/>)}</div></section>
+      <section className="card"><h2 className="h2">Tabela de locação</h2><p className="section-note">Estes são os mesmos valores usados na nova locação e exibidos no site.</p><div className="grid product-price-grid"><Money nome="Diária · 1 dia" valor={Number(p.diaria||0)} set={v => campo("diaria",v)}/><Money nome="Pacote · 3 dias" valor={tresDias} set={setTresDias}/><Money nome="Semanal · 7 dias" valor={Number(p.semanal||0)} set={v => campo("semanal",v)}/><Money nome="Quinzenal · 15 dias" valor={Number(p.quinzenal||0)} set={v => campo("quinzenal",v)}/><Money nome="Mensal · 30 dias" valor={Number(p.mensal||0)} set={v => campo("mensal",v)}/></div></section>
       {erro && <div className="inline-error">{erro}</div>}
       <div className="row"><button className="btn btn-primary" disabled={salvando} onClick={salvar}>{salvando ? "Salvando..." : editando ? "Salvar alterações" : "Salvar equipamento"}</button><button className="btn btn-ghost" onClick={() => nav(editando ? `/app/produtos/${id}` : "/app/produtos")}>Cancelar</button></div>
     </div>

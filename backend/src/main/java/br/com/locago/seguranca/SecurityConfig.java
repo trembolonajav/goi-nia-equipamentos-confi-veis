@@ -21,7 +21,7 @@ public class SecurityConfig {
     http.csrf(c->c.csrfTokenRepository(csrf).csrfTokenRequestHandler(handler))
       .cors(c->{})
       .authorizeHttpRequests(a->a
-        .requestMatchers("/actuator/health","/api/auth/csrf","/api/auth/login").permitAll()
+        .requestMatchers("/actuator/health","/api/auth/csrf","/api/auth/login","/api/public/**").permitAll()
         .requestMatchers("/api/admin/**","/api/atendimento/recebimentos/*/estornar","/api/atendimento/financeiro/lancamentos/**","/api/atendimento/financeiro/contas-pagar/**","/api/atendimento/servicos/**","/api/atendimento/produtos/categorias/**").hasRole("ADMIN")
         .requestMatchers("/api/auth/**","/api/atendimento/**").authenticated().anyRequest().permitAll())
       .exceptionHandling(e->e.authenticationEntryPoint((q,r,x)->r.sendError(HttpServletResponse.SC_UNAUTHORIZED)).accessDeniedHandler((q,r,x)->r.sendError(HttpServletResponse.SC_FORBIDDEN)))

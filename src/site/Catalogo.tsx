@@ -1,32 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { DADOS, CATEGORIAS } from "../data/catalogo";
-import { imgOf } from "../lib/images";
-import { openWhatsApp } from "../lib/whatsapp";
-
-export default function Catalogo() {
-  const nav = useNavigate(); const [params] = useSearchParams();
-  const [texto, setTexto] = useState(""); const [categoria, setCategoria] = useState("");
-  const servico = params.get("servico") || "";
-  const lista = DADOS.filter((eq) => (!categoria || eq.categoria === categoria) && (!servico || eq.servico === servico) && (!texto || `${eq.nome} ${eq.marca} ${eq.modelo} ${eq.categoria} ${eq.aplicacao}`.toLowerCase().includes(texto.toLowerCase())));
-  return <main className="site-wrap" style={{ padding: "40px 0 80px" }}>
-    <div className="row" style={{ gap: 8, fontSize: 13 }}><button className="link-back" onClick={() => nav("/site")}>Início</button><span>/</span><span className="muted">Catálogo</span></div>
-    <h1 className="h1" style={{ fontSize: "clamp(2.25rem,4vw,3rem)", marginTop: 12 }}>Equipamentos disponíveis na loja</h1>
-    <p className="muted" style={{ marginTop: 8, fontSize: 16 }}>{lista.length} {lista.length === 1 ? "equipamento" : "equipamentos"} · consulte valores e disponibilidade pelo WhatsApp</p>
-    <div className="cat-cols" style={{ marginTop: 32, display: "grid", gridTemplateColumns: "260px 1fr", gap: 32, alignItems: "start" }}>
-      <aside className="card" style={{ position: "sticky", top: 96, display: "flex", flexDirection: "column", gap: 18 }}>
-        <div><div className="uplabel" style={{ marginBottom: 6 }}>Buscar</div><input className="input" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="modelo, marca, equipamento..." /></div>
-        <div><div className="uplabel" style={{ marginBottom: 10 }}>Categoria</div><div className="stack" style={{ gap: 6 }}><Filter label="Todas" active={!categoria} onClick={() => setCategoria("")} />{CATEGORIAS.map(c => <Filter key={c} label={c} active={categoria === c} onClick={() => setCategoria(categoria === c ? "" : c)} />)}</div></div>
-        <button className="btn btn-primary" onClick={() => openWhatsApp("Olá! Gostaria de receber orientação para escolher um equipamento para minha obra.")}>Pedir orientação</button>
-      </aside>
-      <div><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 24 }}>{lista.map(eq => <article key={eq.slug} className="eq-card">
-        <div className="ph" style={{ backgroundImage: `url(${imgOf(eq.img)})` }} />
-        <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
-          <div className="uplabel" style={{ color: "var(--muted-2)" }}>{eq.marca} · {eq.modelo}</div><h3 style={{ fontFamily: "var(--head)", fontWeight: 600, fontSize: 22, margin: 0 }}>{eq.nome}</h3><p className="muted" style={{ margin: 0, fontSize: 14, flex: 1 }}>{eq.aplicacao}</p>
-          <button className="btn btn-ghost" onClick={() => nav(`/site/equipamento/${eq.slug}`)}>Ver detalhes</button>
-          <button className="btn btn-primary" onClick={() => openWhatsApp(`Olá! Tenho interesse em alugar o equipamento ${eq.nome} (${eq.marca} ${eq.modelo}). Gostaria de consultar valor e disponibilidade.`)}>Consultar no WhatsApp</button>
-        </div></article>)}</div>{!lista.length && <div className="empty">Nenhum equipamento com esses filtros.</div>}</div>
-    </div>
-  </main>;
-}
-function Filter({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) { return <button onClick={onClick} style={{ minHeight: 40, padding: "0 12px", border: `1px solid ${active ? "var(--orange)" : "var(--border)"}`, borderRadius: 8, background: "var(--input)", color: active ? "var(--orange)" : "var(--muted)", textAlign: "left", cursor: "pointer" }}>{label}</button>; }
+import {useEffect,useState} from "react";import {useNavigate,useSearchParams} from "react-router-dom";import {publicApi,type EquipamentoPublico} from "../lib/api";import {openWhatsApp} from "../lib/whatsapp";
+const brl=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}),destino=(slug:string)=>`/site/equipamento/${slug}`;
+const mensagem=(eq:EquipamentoPublico)=>`Olá! Tenho interesse em alugar ${eq.nome}${eq.marca?` da marca ${eq.marca}`:""}${eq.modelo?`, modelo ${eq.modelo}`:""} (código ${eq.id}). Gostaria de consultar disponibilidade, valores e condições de locação.`;
+export default function Catalogo(){const nav=useNavigate(),[params]=useSearchParams(),[dados,setDados]=useState<EquipamentoPublico[]>([]),[erro,setErro]=useState(""),[texto,setTexto]=useState(""),[categoria,setCategoria]=useState("");useEffect(()=>{publicApi.catalogo().then(setDados).catch(e=>setErro(e.message))},[]);const categorias=[...new Set(dados.map(x=>x.categoria))],servico=params.get("servico")||"",lista=dados.filter(x=>(!categoria||x.categoria===categoria)&&(!servico||x.aplicacao.toLowerCase().includes(servico.toLowerCase()))&&(!texto||`${x.nome} ${x.marca} ${x.modelo} ${x.categoria} ${x.aplicacao}`.toLowerCase().includes(texto.toLowerCase())));return <main className="site-wrap catalog-page"><div className="uplabel" style={{color:"var(--orange)"}}>Estoque real LOCAGO</div><h1 className="h1 catalog-title">Equipamentos para sua obra</h1><p className="lead">Compare aplicações, especificações e períodos. Para reservar, confirme as datas com nossa equipe.</p>{erro&&<div className="empty">Catálogo indisponível: {erro}</div>}<div className="catalog-layout"><aside className="catalog-filters"><label className="field"><span>Buscar no catálogo</span><input className="input" value={texto} onChange={e=>setTexto(e.target.value)} placeholder="Nome, marca ou serviço..."/></label><div className="uplabel">Categorias</div><Filter label="Todos os equipamentos" active={!categoria} onClick={()=>setCategoria("")}/>{categorias.map(c=><Filter key={c} label={c} active={categoria===c} onClick={()=>setCategoria(c)}/>)}</aside><div><p className="muted catalog-count">{lista.length} {lista.length===1?"equipamento encontrado":"equipamentos encontrados"}</p><div className="catalog-grid">{lista.map(eq=>{const menor=Math.min(...eq.precos.map(p=>Number(p.valor)));return <article key={eq.id} className="eq-card catalog-card" role="link" tabIndex={0} aria-label={`Ver ficha completa de ${eq.nome}`} onClick={()=>nav(destino(eq.slug))} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();nav(destino(eq.slug))}}}><div className="product-card-photo" style={{backgroundImage:`url(${eq.imagemUrl})`}}/><div className="catalog-card-body"><div className="uplabel">{eq.categoria}</div><h2>{eq.nome}</h2><p className="muted">{eq.aplicacao}</p><div className="catalog-meta"><span>A partir de <strong>{brl.format(menor)}</strong></span></div><button className="btn btn-ghost btn-block" onClick={e=>{e.stopPropagation();nav(destino(eq.slug))}}>Ver ficha completa</button><button className="btn btn-primary btn-block" onClick={e=>{e.stopPropagation();openWhatsApp(mensagem(eq))}}>Consultar no WhatsApp</button></div></article>})}</div>{!lista.length&&<div className="empty">Nenhum equipamento encontrado com esses filtros.</div>}</div></div></main>}
+function Filter({label,active,onClick}:{label:string;active:boolean;onClick:()=>void}){return <button className={`catalog-filter${active?" on":""}`} onClick={onClick}>{label}</button>}
