@@ -3,8 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useStore } from "../data/store";
 import { useAuth } from "../auth/AuthContext";
 import { monograma } from "../lib/images";
-import { type Produto } from "../data/mock";
-import { atendimentoApi, type PatrimonioApi } from "../lib/api";
+import { atendimentoApi, type PatrimonioApi, type ProdutoApi } from "../lib/api";
 
 interface Item { to: string; label: string; badge?: string; }
 interface Grupo { grupo?: string; itens: Item[]; }
@@ -12,8 +11,7 @@ interface Grupo { grupo?: string; itens: Item[]; }
 function grupoDaRota(pathname: string): string | null {
   if (["/app/nova-locacao", "/app/pedidos", "/app/clientes"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Atendimento";
   if (["/app/contratos", "/app/expedicoes", "/app/devolucoes", "/app/trocas", "/app/ocorrencias"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Locações";
-  if (["/app/produtos", "/app/patrimonios", "/app/composicoes", "/app/disponibilidade", "/app/calendario", "/app/manutencoes"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Equipamentos";
-  if (["/app/agenda", "/app/obras"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Logística";
+  if (["/app/produtos", "/app/patrimonios", "/app/disponibilidade", "/app/manutencoes"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Equipamentos";
   if (["/app/financeiro", "/app/lancamentos", "/app/receber"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Financeiro";
   if (["/app/precos", "/app/modelos", "/app/servicos"].some((p) => pathname === p || pathname.startsWith(p + "/"))) return "Configurações";
   return null;
@@ -26,16 +24,14 @@ export default function Layout() {
   const location = useLocation();
   const [busca, setBusca] = useState("");
   const [grupoAberto, setGrupoAberto] = useState<string | null>(null);
-  const [produtosApi, setProdutosApi] = useState<Produto[]>([]);
+  const [produtosApi, setProdutosApi] = useState<ProdutoApi[]>([]);
   const [patrimoniosApi, setPatrimoniosApi] = useState<PatrimonioApi[]>([]);
-  const [composicoesQtd, setComposicoesQtd] = useState(0);
 
   useEffect(() => {
-    void Promise.all([atendimentoApi.produtos(), atendimentoApi.patrimonios(), atendimentoApi.composicoes()])
-      .then(([produtos, patrimonios, composicoes]) => {
+    void Promise.all([atendimentoApi.produtos(), atendimentoApi.patrimonios()])
+      .then(([produtos, patrimonios]) => {
         setProdutosApi(produtos);
         setPatrimoniosApi(patrimonios);
-        setComposicoesQtd(composicoes.length);
       });
   }, [location.pathname]);
 
@@ -49,27 +45,19 @@ export default function Layout() {
     { itens: [{ to: "/app", label: "Início" }] },
     { grupo: "Atendimento", itens: [
       { to: "/app/nova-locacao", label: "Nova locação" },
-      { to: "/app/pedidos", label: "Pedidos", badge: String(abertos) },
+      { to: "/app/pedidos", label: "Orçamentos", badge: String(abertos) },
       { to: "/app/clientes", label: "Clientes", badge: String(clientes.length) },
     ] },
     { grupo: "Locações", itens: [
       { to: "/app/contratos", label: "Contratos", badge: String(contratos.length) },
       { to: "/app/expedicoes", label: "Expedições", badge: String(expedic) },
       { to: "/app/devolucoes", label: "Devoluções" },
-      { to: "/app/trocas", label: "Trocas" },
-      { to: "/app/ocorrencias", label: "Ocorrências" },
     ] },
     { grupo: "Equipamentos", itens: [
       { to: "/app/produtos", label: "Produtos", badge: String(produtosQtd) },
       { to: "/app/patrimonios", label: "Patrimônios", badge: String(patrimoniosQtd) },
-      { to: "/app/composicoes", label: "Composições", badge: String(composicoesQtd) },
       { to: "/app/disponibilidade", label: "Disponibilidade" },
-      { to: "/app/calendario", label: "Calendário" },
       { to: "/app/manutencoes", label: "Manutenções" },
-    ] },
-    { grupo: "Logística", itens: [
-      { to: "/app/agenda", label: "Agenda" },
-      { to: "/app/obras", label: "Obras" },
     ] },
     { grupo: "Financeiro", itens: [
       { to: "/app/financeiro", label: "Painel financeiro" },
@@ -94,7 +82,7 @@ export default function Layout() {
     for (const c of clientes) if ((c.nome + c.doc + c.tel).toLowerCase().includes(q)) out.push({ grupo: "Cliente", titulo: c.nome, sub: c.doc + " · " + c.situacao, to: `/app/clientes/${c.id}` });
     for (const c of contratos) if ((c.numero + c.local).toLowerCase().includes(q)) out.push({ grupo: "Contrato", titulo: c.numero, sub: c.local + " · " + c.situacao, to: `/app/contratos/${c.numero}` });
     const patsBusca = patrimoniosApi.map((p) => ({ cod: p.codigo, serie: p.serie || "", local: p.local || "", estado: p.estado, prod: p.produtoId }));
-    for (const p of patsBusca) if ((p.cod + p.serie + p.local).toLowerCase().includes(q)) out.push({ grupo: "Patrimônio", titulo: p.cod, sub: p.estado + " · " + (p.local || "Local não informado"), to: `/app/produtos/${p.prod}` });
+    for (const p of patsBusca) if ((p.cod + p.serie + p.local).toLowerCase().includes(q)) out.push({ grupo: "Patrimônio", titulo: p.cod, sub: p.estado + " · " + (p.local || "Local não informado"), to: `/app/patrimonios/${encodeURIComponent(p.cod)}` });
     for (const p of produtosApi) if (p.nome.toLowerCase().includes(q)) out.push({ grupo: "Equipamento", titulo: p.nome, sub: p.categoria, to: `/app/produtos/${p.id}` });
     return out.slice(0, 8);
   }, [busca, clientes, contratos, patrimoniosApi, produtosApi]);
@@ -131,7 +119,7 @@ export default function Layout() {
       <div className="content">
         <header className="topbar">
           <div className="search-wrap">
-            <input className="search-input" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente, contrato, patrimônio, obra ou cobrança" />
+            <input className="search-input" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente, contrato, patrimônio ou equipamento" />
             {resultados.length > 0 && (
               <div className="search-panel">
                 {resultados.map((r, i) => (
@@ -148,7 +136,7 @@ export default function Layout() {
           </div>
           <div style={{ flex: 1 }} className="hide-mobile" />
           <div style={{ textAlign: "right", lineHeight: 1.2 }} className="hide-mobile">
-            <div style={{ fontFamily: "var(--head)", fontWeight: 700, fontSize: 17 }}>Quinta, 06 ago 2026</div>
+            <div style={{ fontFamily: "var(--head)", fontWeight: 700, fontSize: 17 }}>{new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "short", year: "numeric" }).format(new Date())}</div>
             <div style={{ fontSize: 11, color: "var(--muted-2)" }}>{user?.nome} · {user?.papel}</div>
           </div>
           <a href="/site" className="btn btn-ghost btn-sm" style={{ textDecoration: "none" }}>Ver site</a>

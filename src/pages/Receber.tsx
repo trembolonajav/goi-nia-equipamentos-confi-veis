@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader, Tag, useToast } from "../components/ui";
 import { brl } from "../lib/calc";
 import { atendimentoApi, type CobrancaApi, type ContaFinanceiraApi } from "../lib/api";
@@ -18,6 +18,7 @@ export default function Receber() {
   const [observacao, setObservacao] = useState("");
   const [salvando, setSalvando] = useState(false);
   const nav = useNavigate();
+  const [params] = useSearchParams();
   const { toast } = useToast();
 
   const carregar = () => Promise.all([
@@ -68,6 +69,8 @@ export default function Receber() {
   const aberto = lista.filter(c => c.status !== "PAGA").reduce((a, c) => a + Number(c.saldo), 0);
   const recebido = lista.reduce((a, c) => a + Number(c.recebido), 0);
 
+  const filtro = params.get("filtro");
+  const exibida = lista.filter(c => filtro === "hoje" ? c.vencimento === hoje() && c.status !== "PAGA" : filtro === "vencidas" ? c.status === "VENCIDA" : true);
   return <main className="page" style={{ maxWidth: 1300 }}>
     <PageHeader title="Cobranças" sub="Valores devidos pelos clientes. Cada recebimento informa a conta, forma e data reais." action={<button className="btn btn-ghost" onClick={carregar}>Atualizar</button>} />
     <div className="grid" style={{ gridTemplateColumns: "repeat(3,1fr)", marginTop: 20 }}>
@@ -75,7 +78,7 @@ export default function Receber() {
     </div>
     <div className="list-head" style={{ marginTop: 24, gridTemplateColumns: "100px 1.3fr 130px 120px 130px 160px" }}><span>Cobrança</span><span>Cliente</span><span>Vencimento</span><span>Situação</span><span>Saldo</span><span>Ação</span></div>
     <div className="list">
-      {lista.map(c => <div key={c.id} className="list-row" style={{ gridTemplateColumns: "100px 1.3fr 130px 120px 130px 160px", cursor: "default" }}>
+      {exibida.map(c => <div key={c.id} className="list-row" style={{ gridTemplateColumns: "100px 1.3fr 130px 120px 130px 160px", cursor: "default" }}>
         <button className="link-back mono orange" onClick={() => nav(`/app/contratos/${c.contrato}`)}>CB-{String(c.id).padStart(5, "0")}</button>
         <span><strong>{c.cliente}</strong><small style={{ display: "block", color: "var(--muted)" }}>{c.descricao} · {c.contrato}</small></span>
         <span>{c.vencimento.split("-").reverse().join("/")}</span>
@@ -83,7 +86,7 @@ export default function Receber() {
         <span className="num">{brl.format(Number(c.saldo))}</span>
         <span>{c.status !== "PAGA" && <button className="btn btn-primary btn-sm" onClick={() => abrir(c)}>Registrar recebimento</button>}</span>
       </div>)}
-      {!erro && !lista.length && <div className="empty">Nenhuma cobrança real.</div>}
+      {!erro && !exibida.length && <div className="empty">Nenhuma cobrança real para este filtro.</div>}
       {erro && <div className="empty" style={{ color: "var(--red)" }}>{erro}</div>}
     </div>
     {selecionada && <div className="document-modal"><div className="issue-modal">

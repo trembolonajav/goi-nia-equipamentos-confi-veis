@@ -9,7 +9,8 @@ export default function Devolucoes(){
  const {contratos,getCliente,devolverContrato}=useStore();const nav=useNavigate();const {toast}=useToast();const [params]=useSearchParams();
  const [aberto,setAberto]=useState<string|null>(params.get("contrato")),[docs,setDocs]=useState<DocumentoClienteApi[]>([]),[enviando,setEnviando]=useState(false),[confirmando,setConfirmando]=useState(false),[visualizando,setVisualizando]=useState<DocumentoClienteApi|null>(null);
  const [itens,setItens]=useState<ContratoItemOperacionalApi[]>([]),[selecionados,setSelecionados]=useState<string[]>([]);
- const fila=contratos.filter(c=>["Em andamento","Parcialmente expedido","Em inspeção"].includes(c.situacao));
+ const hoje=new Date().toISOString().slice(0,10),filtro=params.get("filtro");
+ const fila=contratos.filter(c=>["Em andamento","Parcialmente expedido","Em inspeção"].includes(c.situacao)).filter(c=>filtro==="hoje"?c.fim===hoje:filtro==="atrasadas"?c.fim<hoje:true);
  useEffect(()=>{if(!aberto){setDocs([]);setItens([]);setSelecionados([]);return}Promise.all([atendimentoApi.documentosContrato(aberto),atendimentoApi.itensOperacionaisContrato(aberto)]).then(([d,i])=>{setDocs(d);setItens(i);setSelecionados([])}).catch(()=>{setDocs([]);setItens([]);setSelecionados([])})},[aberto]);
  const via=docs.find(d=>d.tipo===TIPO);
  return <main className="page" style={{maxWidth:1300}}><PageHeader title="Devoluções" sub="Receba o equipamento de forma documentada: gere o comprovante, recolha a assinatura, anexe a via digitalizada e confirme o retorno."/>

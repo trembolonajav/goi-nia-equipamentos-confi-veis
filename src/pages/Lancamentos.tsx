@@ -1,4 +1,5 @@
 import {useEffect,useMemo,useState} from "react";
+import {useSearchParams} from "react-router-dom";
 import {PageHeader,Tag,useToast} from "../components/ui";
 import {atendimentoApi,type ContaFinanceiraApi,type LancamentoFinanceiroApi} from "../lib/api";
 import {brl} from "../lib/calc";
@@ -7,8 +8,9 @@ const hoje=()=>new Date().toISOString().slice(0,10);
 export default function Lancamentos(){
   const [lista,setLista]=useState<LancamentoFinanceiroApi[]>([]),[contas,setContas]=useState<ContaFinanceiraApi[]>([]),[contaId,setContaId]=useState(""),[modal,setModal]=useState(false),[busca,setBusca]=useState("");
   const [tipo,setTipo]=useState<"ENTRADA"|"SAIDA">("ENTRADA"),[descricao,setDescricao]=useState(""),[categoria,setCategoria]=useState("Outros"),[valor,setValor]=useState(""),[vencimento,setVencimento]=useState(hoje()),[status,setStatus]=useState("ABERTO"),[forma,setForma]=useState("Pix"),[salvando,setSalvando]=useState(false); const {toast}=useToast();
+  const [params]=useSearchParams();
   const carregar=()=>Promise.all([atendimentoApi.lancamentosFinanceiros(),atendimentoApi.contasFinanceiras()]).then(([l,c])=>{setLista(l);setContas(c);setContaId(atual=>atual||(c.length===1?String(c[0].id):""))});
-  useEffect(()=>{void carregar()},[]); const filtrada=useMemo(()=>lista.filter(l=>(l.descricao+l.categoria+l.status).toLowerCase().includes(busca.toLowerCase())),[lista,busca]);
+  useEffect(()=>{void carregar()},[]); const filtrada=useMemo(()=>lista.filter(l=>(l.descricao+l.categoria+l.status).toLowerCase().includes(busca.toLowerCase())).filter(l=>params.get("filtro")!=="pagar-hoje"||(l.tipo==="SAIDA"&&l.vencimento===hoje()&&["ABERTO","VENCIDO"].includes(l.status))),[lista,busca,params]);
   async function salvar(){if(!contaId){toast("Selecione a conta financeira.");return}setSalvando(true);try{await atendimentoApi.criarLancamentoFinanceiro({tipo,descricao,categoria,valor:Number(valor.replace(",",".")),vencimento,status,forma,contaId:Number(contaId)});toast("Lançamento salvo.");setModal(false);setDescricao("");setValor("");await carregar()}catch(e){toast(e instanceof Error?e.message:"Não foi possível salvar.")}finally{setSalvando(false)}}
   async function baixar(l:LancamentoFinanceiroApi){try{await atendimentoApi.baixarLancamentoFinanceiro(l.id,{pagamento:hoje(),forma:"Pix"});toast("Pagamento confirmado.");await carregar()}catch(e){toast(e instanceof Error?e.message:"Falha ao baixar lançamento.")}}
   return <main className="page" style={{maxWidth:1350}}><PageHeader title="Lançamentos" sub="Registre entradas e saídas, acompanhe vencimentos e confirme pagamentos." action={<button className="btn btn-primary" onClick={()=>setModal(true)}>Novo lançamento</button>}/>

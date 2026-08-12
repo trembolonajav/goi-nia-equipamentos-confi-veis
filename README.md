@@ -100,3 +100,5 @@ Além dos testes automatizados, mudanças de domínio devem ser validadas em ban
 **LOCAGO Core Foundation V1 — CLOSED.**
 
 **Marco 2 — Normalização Comercial:** orçamento e suas versões são persistidos; versões enviadas são imutáveis; a aprovação usa o identificador explícito da versão e materializa, em uma única transação, pedido, contrato, itens, serviços, reservas e cobrança. Novos pedidos e contratos só podem nascer de uma versão persistida e aprovada. Documentos históricos usam os snapshots gravados, mesmo que o catálogo seja alterado posteriormente.
+
+**LOCAGO Core — Marco 4 Experiência Operacional: CLOSED.** O Dashboard é uma lista de trabalho baseada exclusivamente na API, com pendências operacionais, resumo financeiro realizado, navegação contextual e estados explícitos de indisponibilidade.

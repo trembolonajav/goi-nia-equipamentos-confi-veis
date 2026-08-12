@@ -124,6 +124,10 @@ public class ComercialService {
     Map<String,Object> contratoJson=contratoSnapshot(contrato,pedido,o,v,itens);
     jdbc.sql("insert into contrato_atendimento(numero,pedido_numero,cliente_id,dados) values(:n,:p,:c,cast(:d as jsonb))")
       .param("n",contrato).param("p",pedido).param("c",o.get("cliente_id")).param("d",escrever(contratoJson)).update();
+    if("obra".equalsIgnoreCase(String.valueOf(v.get("entrega")))){
+      jdbc.sql("insert into tarefa_logistica(contrato_numero,cliente_id,tipo,data_prevista,hora_prevista,destino,endereco) values(:c,:cli,'ENTREGA',:data,'08:00',:dest,:end),(:c,:cli,'COLETA',:fim,'16:00',:dest,:end)")
+        .param("c",contrato).param("cli",o.get("cliente_id")).param("data",inicio).param("fim",fim).param("dest",contratoJson.get("local")).param("end",contratoJson.get("endereco")).update();
+    }
     for(Map<String,Object> item:itens){
       long pedidoItem=jdbc.sql("insert into pedido_item(pedido_numero,orcamento_item_id,produto_id,descricao_snapshot,quantidade,tipo_preco,valor_unitario,valor_total,dados_snapshot) values(:p,:oi,:prod,:d,:q,:tp,:u,:t,cast(:s as jsonb)) returning id")
         .param("p",pedido).param("oi",item.get("id")).param("prod",item.get("produto_id")).param("d",item.get("descricao_snapshot")).param("q",item.get("quantidade")).param("tp",item.get("tipo_preco")).param("u",item.get("valor_unitario")).param("t",item.get("valor_total")).param("s",escrever(item)).query(Long.class).single();

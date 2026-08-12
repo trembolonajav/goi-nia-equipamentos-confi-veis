@@ -79,6 +79,8 @@ public class OperacaoContratoService {
       jdbc.sql("update contrato_item_patrimonio set entregue_em=now() where id=:id").param("id",vinculo.get("id")).update();
       registrarMovimento(numero,itemId,codigo,"ENTREGA_CONFIRMADA","LOCADO","LOCADO","Comprovante de entrega confirmado",entregaOperacaoId);
     }
+    int aguardando=jdbc.sql("select count(*) from contrato_item_patrimonio cip join contrato_item ci on ci.id=cip.contrato_item_id where ci.contrato_numero=:c and cip.liberado_em is null and cip.entregue_em is null").param("c",numero).query(Integer.class).single();
+    if(aguardando==0)jdbc.sql("update tarefa_logistica set status='CONCLUIDA',concluido_em=now() where contrato_numero=:c and tipo='ENTREGA' and status='PENDENTE'").param("c",numero).update();
     evento(contrato,"Entrega confirmada",codigos.size()+" patrimônio(s) entregue(s) ao cliente"); salvar(numero,contrato); return contrato;
   }
 
@@ -92,6 +94,8 @@ public class OperacaoContratoService {
       jdbc.sql("update contrato_item_patrimonio set devolvido_em=now() where contrato_item_id=:i and patrimonio_codigo=:p and liberado_em is null").param("i",itemId).param("p",codigo).update();
       atualizarStatusItem(itemId);
     }
+    int locados=jdbc.sql("select count(*) from contrato_item_patrimonio cip join contrato_item ci on ci.id=cip.contrato_item_id join patrimonio_atendimento p on p.codigo=cip.patrimonio_codigo where ci.contrato_numero=:c and cip.liberado_em is null and p.estado='LOCADO'").param("c",numero).query(Integer.class).single();
+    if(locados==0)jdbc.sql("update tarefa_logistica set status='CONCLUIDA',concluido_em=now() where contrato_numero=:c and tipo='COLETA' and status='PENDENTE'").param("c",numero).update();
     atualizarSituacao(numero,contrato); evento(contrato,"Devolução recebida",codigos.size()+" patrimônio(s) enviado(s) para inspeção"); salvar(numero,contrato); return contrato;
   }
 

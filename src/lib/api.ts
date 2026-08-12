@@ -1,5 +1,7 @@
 import type { Cliente, Contrato, Pedido, Produto, Patrimonio } from "../data/mock";
 
+export type ProdutoApi = Produto;
+
 export interface ManutencaoApi { id: number; patrimonio: string; produto: string; contrato: string; motivo: string; status: "ABERTA" | "CONCLUIDA"; criadoEm: string; concluidoEm: string | null; }
 export interface PatrimonioApi{codigo:string;produtoId:string;produto:string;serie:string;estado:string;local?:string|null;marca?:string;modelo?:string;dataAquisicao?:string|null;valorAquisicao?:number|null;observacao?:string|null}
 export interface AgendaApi { id:number; contrato:string; clienteId:string; cliente:string; tipo:"ENTREGA"|"COLETA"; data:string; hora:string; destino:string; endereco:string; status:"PENDENTE"|"CONCLUIDA"; }
@@ -14,6 +16,7 @@ export interface EventoOperacionalApi {id:number;tipo:"TROCA"|"OCORRENCIA";contr
 export interface CategoriaProdutoApi{id:number;nome:string;prefixo:string}
 export interface ComposicaoApi{id:string;nome:string;principal:string;inclusos:string[];opcionais:{nome:string;valor:number}[];nota:string}
 export interface ContratoItemOperacionalApi{id:number;produtoId:string;descricao:string;quantidade:number;expedido:number;aExpedir:number;entregue:number;status:string;inicio:string;fim:string;valor:number;patrimonios:{codigo:string;estado:string;serie:string;entregue:boolean}[]}
+export interface DashboardApi{entregasPendentes:number;devolucoesPrevistas:number;devolucoesAtrasadas:number;cobrancasVencendoHoje:number;cobrancasVencidas:number;manutencoesAbertas:number;aReceberHoje:number;valorVencido:number;aPagarHoje:number;saldoRealizado:number;proximasAcoes:{id:number;contrato:string;tipo:"ENTREGA"|"COLETA";data:string;hora:string;destino:string;cliente:string}[]}
 
 const API = import.meta.env.VITE_API_URL || "/api";
 
@@ -35,6 +38,7 @@ async function mensagemErro(response: Response) {
 }
 
 export const atendimentoApi = {
+  dashboard:()=>request<DashboardApi>("/atendimento/dashboard"),
   clientes: () => request<Cliente[]>("/atendimento/clientes"),
   criarCliente: (cliente: Partial<Cliente>) => request<Cliente>("/atendimento/clientes", { method: "POST", body: JSON.stringify(cliente) }),
   atualizarCliente: (cliente: Cliente) => request<Cliente>(`/atendimento/clientes/${cliente.id}`, { method: "PUT", body: JSON.stringify(cliente) }),
